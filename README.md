@@ -1,3 +1,5 @@
+**[UluOps](https://uluops.ai)** · Operating Intelligence as Infrastructure
+
 # Unified Definition Language
 
 A family of four declarative definition languages for AI agent operations. Each level addresses a single operational concern, forming a strict composition hierarchy from atomic cognitive operations to governance orchestrations.
@@ -51,6 +53,7 @@ The governance layer. Each pipeline composes workflows into stages with triggers
 - [Failure Taxonomy](https://github.com/Uluops/failure-taxonomy) — The four-domain classification system integrated into agent output schemas
 - [Cognitive Lens Library](https://github.com/Uluops/cognitive-lens-library) — Thinker profiles that inform cognitive lens agent definitions
 - [UluOps](https://uluops.ai) — The platform infrastructure for registry, tracking, and execution
+- [UluOps Registry — Specs](https://registry.uluops.ai/specs/adl) — Live rendered specifications
 
 ## License
 
