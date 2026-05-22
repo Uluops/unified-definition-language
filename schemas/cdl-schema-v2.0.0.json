@@ -1,0 +1,687 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://uluops.ai/schemas/cdl/v2.0.0/command.json",
+  "title": "Command Definition Language (CDL) Schema",
+  "description": "Schema for defining commands in the UluOps framework. Supports three command types: agent (wraps any ADL agent with execution context), utility (agent-less procedural commands), and custom (all-optional escape hatch for advanced use cases).",
+  "version": "2.0.0",
+  "type": "object",
+  "required": ["command"],
+  "properties": {
+    "command": {
+      "type": "object",
+      "required": ["interface"],
+      "properties": {
+
+        "interface": {
+          "$ref": "#/$defs/interface"
+        },
+
+        "invokes": {
+          "$ref": "#/$defs/invokes"
+        },
+
+        "execution": {
+          "$ref": "#/$defs/execution",
+          "description": "Runtime configuration for agent invocation"
+        },
+
+        "preflight": {
+          "$ref": "#/$defs/preflight",
+          "description": "Checks to run before agent invocation"
+        },
+
+        "overrides": {
+          "$ref": "#/$defs/overrides",
+          "description": "Override agent default values"
+        },
+
+        "inputs": {
+          "$ref": "#/$defs/inputs",
+          "description": "Input sources for commands"
+        },
+
+        "arguments": {
+          "$ref": "#/$defs/arguments",
+          "description": "Argument configuration including usage examples"
+        },
+
+        "iteration": {
+          "$ref": "#/$defs/iteration",
+          "description": "Iteration configuration for review-fix loops"
+        },
+
+        "postflight": {
+          "$ref": "#/$defs/postflight",
+          "description": "Actions based on agent result and completion steps"
+        },
+
+        "tracking": {
+          "$ref": "#/$defs/tracking",
+          "description": "Metrics collection and persistence configuration"
+        },
+
+        "output": {
+          "$ref": "#/$defs/output",
+          "description": "Output formatting configuration"
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": { "interface": { "properties": { "commandType": { "const": "agent" } } } }
+          },
+          "then": {
+            "required": ["interface", "invokes"]
+          }
+        }
+      ],
+      "additionalProperties": false
+    }
+  },
+
+  "$defs": {
+
+    "interface": {
+      "type": "object",
+      "required": ["name", "version", "displayName", "description", "domain", "commandType"],
+      "properties": {
+        "name": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9]*(-[a-z0-9]+)*$",
+          "description": "Kebab-case identifier for the command",
+          "examples": ["validate", "audit", "fix-test-gaps", "commit-push"]
+        },
+        "version": {
+          "type": "string",
+          "pattern": "^\\d+\\.\\d+\\.\\d+$",
+          "description": "Semantic version (e.g., 1.0.0)",
+          "examples": ["1.0.0", "1.2.3", "2.0.0"]
+        },
+        "displayName": {
+          "type": "string",
+          "minLength": 3,
+          "maxLength": 50,
+          "description": "Human-readable display name",
+          "examples": ["Code Validator", "Commit and Push", "Fix Test Gaps"]
+        },
+        "description": {
+          "type": "string",
+          "minLength": 20,
+          "maxLength": 500,
+          "description": "Usage description: when to use + what it does"
+        },
+        "commandType": {
+          "$ref": "#/$defs/commandType"
+        },
+        "domain": {
+          "$ref": "#/$defs/domain"
+        },
+        "subdomain": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9]*(-[a-z0-9]+)*$",
+          "description": "Optional refinement of domain",
+          "examples": ["quality", "safety", "remediation", "scm"]
+        },
+        "tags": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9]*(-[a-z0-9]+)*$"
+          },
+          "description": "Searchable tags for discovery"
+        }
+      },
+      "additionalProperties": false
+    },
+
+    "commandType": {
+      "type": "string",
+      "enum": ["agent", "utility", "custom"],
+      "description": "Command type determines template rendering and required fields. agent: wraps any ADL agent (validator, executor, analyst, generator, explorer, forecaster) with execution context. utility: agent-less procedural commands. custom: all fields optional, escape hatch for advanced use cases."
+    },
+
+    "domain": {
+      "type": "string",
+      "enum": [
+        "software",
+        "legal",
+        "medical",
+        "financial",
+        "scientific",
+        "content",
+        "general",
+        "career",
+        "compliance",
+        "business",
+        "education",
+        "documentation",
+        "security",
+        "cognitive-lens"
+      ],
+      "description": "Primary domain classification"
+    },
+
+    "invokes": {
+      "type": "object",
+      "required": ["agent"],
+      "properties": {
+        "agent": {
+          "$ref": "#/$defs/agentRef"
+        }
+      },
+      "additionalProperties": false
+    },
+
+    "agentRef": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9]*(-[a-z0-9]+)*@(\\d+\\.\\d+\\.\\d+|>=\\d+\\.\\d+\\.\\d+|<=\\d+\\.\\d+\\.\\d+|\\^\\d+\\.\\d+\\.\\d+|~\\d+\\.\\d+\\.\\d+|latest)$",
+      "description": "Agent reference in name@version format",
+      "examples": ["code-validator@1.0.0", "code-validator@>=1.2.0", "code-auditor@^1.0.0", "prompt-creator@latest"]
+    },
+
+    "execution": {
+      "type": "object",
+      "properties": {
+        "model": {
+          "type": "object",
+          "required": ["default"],
+          "properties": {
+            "default": {
+              "$ref": "#/$defs/model",
+              "description": "Default model for invocation"
+            },
+            "allowed": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/model"
+              },
+              "description": "Models users can override to"
+            }
+          },
+          "additionalProperties": false
+        },
+        "timeout": {
+          "type": "integer",
+          "minimum": 1000,
+          "maximum": 3600000,
+          "default": 300000,
+          "description": "Timeout in milliseconds"
+        },
+        "max_retries": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 5,
+          "default": 0,
+          "description": "Number of retry attempts on failure"
+        },
+        "retry_delay": {
+          "type": "integer",
+          "minimum": 100,
+          "maximum": 60000,
+          "default": 1000,
+          "description": "Delay between retries in milliseconds"
+        }
+      },
+      "additionalProperties": false
+    },
+
+    "model": {
+      "type": "string",
+      "pattern": "^(haiku|sonnet|opus|[a-z]+/[a-z0-9-]+)$",
+      "description": "Model alias or canonical identifier",
+      "examples": ["haiku", "sonnet", "opus", "anthropic/claude-sonnet-4-5"]
+    },
+
+    "preflight": {
+      "type": "object",
+      "properties": {
+        "checks": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/preflightCheck"
+          },
+          "description": "List of preflight checks to run"
+        },
+        "banner": {
+          "type": "object",
+          "properties": {
+            "template": {
+              "type": "string",
+              "description": "Banner template to display before execution"
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+
+    "preflightCheck": {
+      "type": "object",
+      "required": ["check"],
+      "properties": {
+        "check": {
+          "type": "string",
+          "enum": ["path_exists", "file_exists", "command", "git_clean", "env_var"],
+          "description": "Type of preflight check"
+        },
+        "path": {
+          "type": "string",
+          "description": "Path for path_exists or file_exists checks"
+        },
+        "command": {
+          "type": "string",
+          "description": "Shell command for command checks"
+        },
+        "name": {
+          "type": "string",
+          "description": "Environment variable name for env_var checks"
+        },
+        "required": {
+          "type": "boolean",
+          "default": true,
+          "description": "Whether the check is required (for file_exists)"
+        },
+        "expect_output": {
+          "type": "boolean",
+          "description": "For command checks: expect non-empty output"
+        },
+        "expect_empty": {
+          "type": "boolean",
+          "description": "For command checks: expect empty output"
+        },
+        "message": {
+          "type": "string",
+          "description": "Error or warning message on failure"
+        },
+        "on_fail": {
+          "type": "string",
+          "enum": ["abort", "warn", "skip"],
+          "default": "abort",
+          "description": "Action to take on check failure"
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": { "check": { "enum": ["path_exists", "file_exists"] } }
+          },
+          "then": {
+            "required": ["path"]
+          }
+        },
+        {
+          "if": {
+            "properties": { "check": { "const": "command" } }
+          },
+          "then": {
+            "required": ["command"]
+          }
+        },
+        {
+          "if": {
+            "properties": { "check": { "const": "env_var" } }
+          },
+          "then": {
+            "required": ["name"]
+          }
+        }
+      ],
+      "additionalProperties": false
+    },
+
+    "overrides": {
+      "type": "object",
+      "properties": {
+        "threshold": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 100,
+          "description": "Override agent's default decision threshold"
+        },
+        "timeout": {
+          "type": "integer",
+          "minimum": 1000,
+          "maximum": 3600000,
+          "description": "Override agent's default timeout (ms)"
+        },
+        "temperature": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1,
+          "description": "Override model temperature"
+        }
+      },
+      "additionalProperties": false
+    },
+
+    "inputs": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/input"
+      },
+      "description": "Input sources for commands"
+    },
+
+    "input": {
+      "type": "object",
+      "required": ["name", "source"],
+      "properties": {
+        "name": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9]*(_[a-z0-9]+)*$",
+          "description": "Input parameter name"
+        },
+        "source": {
+          "type": "string",
+          "enum": ["file", "default", "env", "arg", "previous"],
+          "description": "Where to get the input value"
+        },
+        "path": {
+          "type": "string",
+          "description": "File path for 'file' source"
+        },
+        "value": {
+          "description": "Default value for 'default' source"
+        },
+        "env": {
+          "type": "string",
+          "description": "Environment variable name for 'env' source"
+        },
+        "arg": {
+          "type": "string",
+          "description": "CLI argument name for 'arg' source"
+        },
+        "default": {
+          "description": "Default value if arg is not provided (for 'arg' source)"
+        },
+        "from": {
+          "type": "string",
+          "description": "Output name from previous command for 'previous' source"
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": { "source": { "const": "file" } }
+          },
+          "then": {
+            "required": ["path"]
+          }
+        },
+        {
+          "if": {
+            "properties": { "source": { "const": "default" } }
+          },
+          "then": {
+            "required": ["value"]
+          }
+        },
+        {
+          "if": {
+            "properties": { "source": { "const": "env" } }
+          },
+          "then": {
+            "required": ["env"]
+          }
+        },
+        {
+          "if": {
+            "properties": { "source": { "const": "arg" } }
+          },
+          "then": {
+            "required": ["arg"]
+          }
+        },
+        {
+          "if": {
+            "properties": { "source": { "const": "previous" } }
+          },
+          "then": {
+            "required": ["from"]
+          }
+        }
+      ],
+      "additionalProperties": false
+    },
+
+    "arguments": {
+      "type": "object",
+      "properties": {
+        "examples": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "minItems": 1,
+          "maxItems": 5,
+          "description": "Example argument values for documentation",
+          "examples": [
+            ["./services/auth-service", "./packages/api", "."],
+            ["./src", "./lib"]
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+
+    "iteration": {
+      "type": "object",
+      "required": ["max_attempts", "exit_threshold"],
+      "properties": {
+        "max_attempts": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 20,
+          "description": "Maximum number of fix-review iterations before escalation"
+        },
+        "exit_threshold": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 100,
+          "description": "Agent score threshold that ends the iteration loop"
+        },
+        "target_agent": {
+          "$ref": "#/$defs/agentRef",
+          "description": "Agent to re-run each iteration cycle (defaults to invokes.agent)"
+        },
+        "fix_patterns": {
+          "type": "boolean",
+          "default": true,
+          "description": "Whether the command includes fix pattern guidance"
+        }
+      },
+      "additionalProperties": false
+    },
+
+    "postflight": {
+      "type": "object",
+      "properties": {
+        "on_success": {
+          "$ref": "#/$defs/postflightAction",
+          "description": "Action when agent succeeds (score >= threshold, or task completed)"
+        },
+        "on_partial": {
+          "$ref": "#/$defs/postflightAction",
+          "description": "Action when agent partially succeeds (some tasks completed, or CONDITIONAL result)"
+        },
+        "on_failure": {
+          "$ref": "#/$defs/postflightAction",
+          "description": "Action when agent fails (score < threshold, or task failed)"
+        },
+        "steps": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/postflightStep"
+          },
+          "description": "Ordered list of postflight actions to execute after agent completes. Steps execute in order; failures can block subsequent steps.",
+          "examples": [
+            [
+              { "action": "persist_to_tracker", "required": true, "on_failure": "block" },
+              { "action": "verify_saved", "required": true, "on_failure": "warn" },
+              { "action": "present_summary", "required": true }
+            ]
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+
+    "postflightAction": {
+      "type": "object",
+      "properties": {
+        "message": {
+          "type": "string",
+          "description": "Message template to display"
+        },
+        "exit_code": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 255,
+          "description": "Process exit code"
+        }
+      },
+      "additionalProperties": false
+    },
+
+    "postflightStep": {
+      "type": "object",
+      "required": ["action"],
+      "properties": {
+        "action": {
+          "$ref": "#/$defs/postflightStepAction",
+          "description": "The postflight action to execute"
+        },
+        "required": {
+          "type": "boolean",
+          "default": true,
+          "description": "Whether this step is required for workflow completion"
+        },
+        "on_failure": {
+          "$ref": "#/$defs/failureAction",
+          "default": "warn",
+          "description": "Behavior when this step fails"
+        },
+        "command": {
+          "type": "string",
+          "description": "Shell command to execute (only for custom_command action)"
+        },
+        "message": {
+          "type": "string",
+          "description": "Optional message to display before/after step execution"
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": { "action": { "const": "custom_command" } }
+          },
+          "then": {
+            "required": ["command"]
+          }
+        }
+      ],
+      "additionalProperties": false
+    },
+
+    "postflightStepAction": {
+      "type": "string",
+      "enum": [
+        "persist_to_tracker",
+        "verify_saved",
+        "present_summary",
+        "custom_command"
+      ],
+      "description": "Available postflight step actions: persist_to_tracker (save results to tracker), verify_saved (verify persistence succeeded), present_summary (display results to user), custom_command (run arbitrary shell command)"
+    },
+
+    "failureAction": {
+      "type": "string",
+      "enum": ["block", "warn", "ignore"],
+      "default": "warn",
+      "description": "Behavior when a postflight step fails: block (stop workflow, mark failed), warn (log warning, continue), ignore (silently continue)"
+    },
+
+    "output": {
+      "type": "object",
+      "required": ["schema"],
+      "properties": {
+        "schema": {
+          "type": "string",
+          "pattern": "^[a-z]+-output-v\\d+\\.\\d+$",
+          "description": "Output schema reference",
+          "examples": ["validator-output-v1.1", "executor-output-v1.0", "utility-output-v1.0"]
+        },
+        "format": {
+          "type": "string",
+          "enum": ["structured", "summary", "minimal"],
+          "default": "structured",
+          "description": "Output format"
+        }
+      },
+      "additionalProperties": false
+    },
+
+    "tracking": {
+      "type": "object",
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Whether to include tracking section in output"
+        },
+        "required": {
+          "type": "boolean",
+          "default": true,
+          "description": "Whether tracker persistence is required before presenting results. When true, results MUST be saved to tracker before displaying summary to user."
+        },
+        "variant": {
+          "type": "string",
+          "enum": ["claude-code", "sdk", "custom", "none"],
+          "default": "claude-code",
+          "description": "Tracking implementation variant"
+        },
+        "custom": {
+          "$ref": "#/$defs/customTracking",
+          "description": "Custom tracking configuration (required when variant is 'custom')"
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": { "variant": { "const": "custom" } },
+            "required": ["variant"]
+          },
+          "then": {
+            "required": ["custom"]
+          }
+        }
+      ],
+      "additionalProperties": false
+    },
+
+    "customTracking": {
+      "type": "object",
+      "properties": {
+        "metrics_command": {
+          "type": "string",
+          "description": "Shell command to retrieve token metrics",
+          "examples": ["agent-metrics buffer list --since 5m -f tracker"]
+        },
+        "persistence_tool": {
+          "type": "string",
+          "description": "MCP tool or function name for saving results",
+          "examples": ["mcp_uluops-tracker_save_run"]
+        },
+        "field_mappings": {
+          "type": "object",
+          "description": "Custom field mappings from agent output to tracker",
+          "additionalProperties": {
+            "type": "string"
+          }
+        }
+      },
+      "additionalProperties": false
+    }
+  }
+}

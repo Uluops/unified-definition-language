@@ -1,0 +1,1163 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://uluops.ai/schemas/pdl/v1.2.0/pipeline.json",
+  "title": "Pipeline Definition Language (PDL) Schema",
+  "description": "Schema for defining multi-workflow pipelines with triggers, approvals, rollback, and tracker integration in the UluOps framework.",
+  "version": "1.2.0",
+  "type": "object",
+  "required": ["pipeline"],
+  "properties": {
+    "pipeline": {
+      "type": "object",
+      "required": ["interface", "stages"],
+      "properties": {
+        "interface": {
+          "$ref": "#/$defs/interface"
+        },
+        "triggers": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/trigger"
+          },
+          "description": "Events that trigger pipeline execution"
+        },
+        "environment": {
+          "$ref": "#/$defs/environment",
+          "description": "Environment variables and secrets"
+        },
+        "stages": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/stage"
+          },
+          "minItems": 1,
+          "description": "Pipeline stages (execution units)"
+        },
+        "rollback": {
+          "$ref": "#/$defs/rollback",
+          "description": "Automatic rollback configuration"
+        },
+        "notifications": {
+          "$ref": "#/$defs/notifications",
+          "description": "External notification configuration"
+        },
+        "artifacts": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/artifact"
+          },
+          "description": "Pipeline-level artifact preservation"
+        },
+        "state": {
+          "$ref": "#/$defs/state",
+          "description": "Cross-run state persistence"
+        },
+        "postflight": {
+          "$ref": "#/$defs/postflight",
+          "description": "Post-completion actions including tracker persistence and cleanup"
+        }
+      }
+    }
+  },
+
+  "$defs": {
+    "interface": {
+      "type": "object",
+      "required": ["name", "version", "displayName", "description", "domain"],
+      "properties": {
+        "name": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9]*(-[a-z0-9]+)*$",
+          "description": "Kebab-case pipeline identifier",
+          "examples": ["release-pipeline", "ci-cd", "deploy-prod"]
+        },
+        "version": {
+          "type": "string",
+          "pattern": "^\\d+\\.\\d+\\.\\d+$",
+          "description": "Semantic version (e.g., 1.0.0)",
+          "examples": ["1.0.0", "2.1.0"]
+        },
+        "displayName": {
+          "type": "string",
+          "minLength": 3,
+          "maxLength": 50,
+          "description": "Human-readable display name",
+          "examples": ["Release Pipeline", "CI/CD Pipeline"]
+        },
+        "description": {
+          "type": "string",
+          "minLength": 20,
+          "maxLength": 500,
+          "description": "Pipeline purpose and scope description"
+        },
+        "domain": {
+          "$ref": "#/$defs/domain"
+        },
+        "subdomain": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9]*(-[a-z0-9]+)*$",
+          "description": "Domain refinement",
+          "examples": ["ci-cd", "deployment", "validation"]
+        },
+        "tags": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9]*(-[a-z0-9]+)*$"
+          },
+          "uniqueItems": true,
+          "description": "Searchable tags for discovery"
+        }
+      }
+    },
+
+    "domain": {
+      "type": "string",
+      "enum": [
+        "software",
+        "security",
+        "compliance",
+        "legal",
+        "medical",
+        "financial",
+        "scientific",
+        "content",
+        "general",
+        "career",
+        "business",
+        "education",
+        "documentation"
+      ],
+      "description": "Primary domain classification"
+    },
+
+    "trigger": {
+      "type": "object",
+      "required": ["type"],
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": ["git_push", "pull_request", "schedule", "webhook", "manual", "pipeline"],
+          "description": "Trigger type"
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": { "type": { "const": "git_push" } }
+          },
+          "then": {
+            "properties": {
+              "branches": {
+                "type": "array",
+                "items": { "type": "string" },
+                "description": "Branch patterns (glob supported)"
+              },
+              "tags": {
+                "type": "array",
+                "items": { "type": "string" },
+                "description": "Tag patterns"
+              },
+              "paths": {
+                "$ref": "#/$defs/pathFilter"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": { "type": { "const": "pull_request" } }
+          },
+          "then": {
+            "properties": {
+              "actions": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "opened",
+                    "closed",
+                    "synchronize",
+                    "reopened",
+                    "labeled",
+                    "unlabeled",
+                    "review_requested",
+                    "review_submitted",
+                    "converted_to_draft",
+                    "ready_for_review"
+                  ]
+                },
+                "description": "PR actions that trigger"
+              },
+              "branches": {
+                "type": "array",
+                "items": { "type": "string" },
+                "description": "Target branch filter"
+              },
+              "paths": {
+                "$ref": "#/$defs/pathFilter"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": { "type": { "const": "schedule" } }
+          },
+          "then": {
+            "required": ["cron"],
+            "properties": {
+              "cron": {
+                "type": "string",
+                "description": "Cron expression"
+              },
+              "timezone": {
+                "type": "string",
+                "default": "UTC",
+                "description": "Timezone for cron"
+              },
+              "skip_if_running": {
+                "type": "boolean",
+                "default": false,
+                "description": "Skip if previous run still active"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": { "type": { "const": "webhook" } }
+          },
+          "then": {
+            "required": ["event"],
+            "properties": {
+              "event": {
+                "type": "string",
+                "description": "Event name to match"
+              },
+              "secret": {
+                "type": "string",
+                "description": "HMAC verification secret"
+              },
+              "payload_filter": {
+                "type": "string",
+                "description": "JSONPath filter expression"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": { "type": { "const": "manual" } }
+          },
+          "then": {
+            "properties": {
+              "allowed": {
+                "type": "boolean",
+                "default": true,
+                "description": "Enable manual triggering"
+              },
+              "parameters": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/$defs/parameter"
+                },
+                "description": "Input parameters for manual trigger"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": { "type": { "const": "pipeline" } }
+          },
+          "then": {
+            "required": ["pipeline"],
+            "properties": {
+              "pipeline": {
+                "type": "string",
+                "description": "Source pipeline reference"
+              },
+              "condition": {
+                "type": "string",
+                "description": "Trigger condition expression"
+              }
+            }
+          }
+        }
+      ]
+    },
+
+    "pathFilter": {
+      "type": "object",
+      "properties": {
+        "include": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Paths that trigger (glob patterns)"
+        },
+        "exclude": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Paths that don't trigger"
+        }
+      }
+    },
+
+    "parameter": {
+      "type": "object",
+      "required": ["name", "type"],
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Parameter name"
+        },
+        "type": {
+          "type": "string",
+          "enum": ["string", "boolean", "number"],
+          "description": "Parameter type"
+        },
+        "default": {
+          "description": "Default value"
+        },
+        "required": {
+          "type": "boolean",
+          "default": false,
+          "description": "Whether parameter is required"
+        },
+        "options": {
+          "type": "array",
+          "description": "Allowed values"
+        },
+        "pattern": {
+          "type": "string",
+          "description": "Validation regex pattern"
+        }
+      }
+    },
+
+    "environment": {
+      "type": "object",
+      "properties": {
+        "variables": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/variable"
+          },
+          "description": "Environment variables"
+        },
+        "secrets": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/secret"
+          },
+          "description": "Secret references"
+        }
+      }
+    },
+
+    "variable": {
+      "type": "object",
+      "required": ["name", "value"],
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Variable name"
+        },
+        "value": {
+          "type": "string",
+          "description": "Value or template expression"
+        },
+        "stages": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Stages that can access"
+        }
+      }
+    },
+
+    "secret": {
+      "type": "object",
+      "required": ["name"],
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Secret name"
+        },
+        "required": {
+          "type": "boolean",
+          "default": false,
+          "description": "Fail if not available"
+        },
+        "stages": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Stages that can access"
+        },
+        "provider": {
+          "type": "string",
+          "description": "Secret provider (vault, aws, etc.)"
+        },
+        "path": {
+          "type": "string",
+          "description": "Provider-specific path"
+        }
+      }
+    },
+
+    "stage": {
+      "type": "object",
+      "required": ["id", "name"],
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9]*(-[a-z0-9]+)*$",
+          "description": "Unique stage identifier"
+        },
+        "name": {
+          "type": "string",
+          "description": "Human-readable stage name"
+        },
+        "depends_on": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Stage dependencies"
+        },
+        "condition": {
+          "type": "string",
+          "description": "Enable condition expression"
+        },
+        "timeout": {
+          "type": "integer",
+          "minimum": 1000,
+          "description": "Timeout in milliseconds"
+        },
+        "parallel": {
+          "type": "boolean",
+          "default": false,
+          "description": "Run items in parallel"
+        },
+        "sequential": {
+          "type": "boolean",
+          "default": false,
+          "description": "Force sequential execution"
+        },
+        "workflows": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/workflowRef"
+          },
+          "description": "Workflow references"
+        },
+        "commands": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/commandRef"
+          },
+          "description": "Command references"
+        },
+        "agents": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/agentRef"
+          },
+          "description": "Direct agent references (subagent_type identifiers)"
+        },
+        "steps": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/step"
+          },
+          "description": "Inline shell steps"
+        },
+        "gate": {
+          "$ref": "#/$defs/gate"
+        },
+        "artifacts": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/artifact"
+          },
+          "description": "Stage-specific artifacts"
+        },
+        "approval": {
+          "$ref": "#/$defs/approval"
+        },
+        "env": {
+          "type": "object",
+          "additionalProperties": { "type": "string" },
+          "description": "Stage-specific environment"
+        },
+        "inputs": {
+          "type": "object",
+          "additionalProperties": { "type": "string" },
+          "description": "Input parameters from dependencies"
+        },
+        "outputs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/output"
+          },
+          "description": "Stage outputs"
+        },
+        "artifacts_from": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Import artifacts from stages"
+        }
+      }
+    },
+
+    "workflowRef": {
+      "type": "object",
+      "required": ["ref"],
+      "properties": {
+        "ref": {
+          "type": "string",
+          "description": "Workflow reference (name@version)"
+        },
+        "args": {
+          "type": "object",
+          "additionalProperties": true,
+          "description": "Arguments to pass"
+        },
+        "condition": {
+          "type": "string",
+          "description": "Conditional execution"
+        },
+        "timeout": {
+          "type": "integer",
+          "description": "Override timeout"
+        }
+      }
+    },
+
+    "commandRef": {
+      "type": "object",
+      "required": ["ref"],
+      "properties": {
+        "ref": {
+          "type": "string",
+          "description": "Command reference (name@version)"
+        },
+        "args": {
+          "type": "object",
+          "additionalProperties": true,
+          "description": "Arguments to pass"
+        },
+        "condition": {
+          "type": "string",
+          "description": "Conditional execution"
+        },
+        "timeout": {
+          "type": "integer",
+          "description": "Override timeout"
+        }
+      }
+    },
+
+    "agentRef": {
+      "type": "object",
+      "required": ["ref"],
+      "properties": {
+        "ref": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9]*(-[a-z0-9]+)*$",
+          "description": "Agent subagent_type identifier (no version)"
+        },
+        "model": {
+          "type": "string",
+          "enum": ["sonnet", "opus", "haiku"],
+          "description": "Model alias override"
+        },
+        "args": {
+          "type": "object",
+          "additionalProperties": true,
+          "description": "Arguments to pass to the agent"
+        },
+        "condition": {
+          "type": "string",
+          "description": "Conditional execution expression"
+        },
+        "timeout": {
+          "type": "integer",
+          "minimum": 1000,
+          "description": "Agent timeout in milliseconds"
+        }
+      }
+    },
+
+    "step": {
+      "type": "object",
+      "required": ["name", "command"],
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Step name"
+        },
+        "command": {
+          "type": "string",
+          "description": "Shell command to execute"
+        },
+        "working_dir": {
+          "type": "string",
+          "description": "Working directory"
+        },
+        "env": {
+          "type": "object",
+          "additionalProperties": { "type": "string" },
+          "description": "Additional environment variables"
+        },
+        "timeout": {
+          "type": "integer",
+          "default": 60000,
+          "description": "Step timeout in milliseconds"
+        },
+        "continue_on_error": {
+          "type": "boolean",
+          "default": false,
+          "description": "Don't fail stage on error"
+        },
+        "always_run": {
+          "type": "boolean",
+          "default": false,
+          "description": "Run even if prior steps failed"
+        },
+        "retries": {
+          "type": "integer",
+          "minimum": 0,
+          "default": 0,
+          "description": "Retry count"
+        },
+        "retry_delay": {
+          "type": "integer",
+          "default": 5000,
+          "description": "Delay between retries in ms"
+        },
+        "expect_empty": {
+          "type": "boolean",
+          "default": false,
+          "description": "Expect no output"
+        },
+        "expect_match": {
+          "type": "string",
+          "description": "Regex pattern for output"
+        }
+      }
+    },
+
+    "gate": {
+      "type": "object",
+      "properties": {
+        "threshold": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 100,
+          "description": "Score threshold"
+        },
+        "aggregate": {
+          "type": "string",
+          "enum": ["min", "max", "average"],
+          "default": "min",
+          "description": "Score aggregation method"
+        },
+        "on_failure": {
+          "type": "string",
+          "enum": ["abort", "warn", "skip"],
+          "default": "abort",
+          "description": "Action on gate failure"
+        },
+        "on_success": {
+          "type": "string",
+          "enum": ["continue", "skip_remaining"],
+          "default": "continue",
+          "description": "Action on gate success"
+        }
+      }
+    },
+
+    "output": {
+      "type": "object",
+      "required": ["name"],
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Output name"
+        },
+        "value": {
+          "type": "string",
+          "description": "Value expression"
+        },
+        "command": {
+          "type": "string",
+          "description": "Command to get value"
+        }
+      }
+    },
+
+    "approval": {
+      "type": "object",
+      "properties": {
+        "required": {
+          "oneOf": [
+            { "type": "boolean" },
+            { "type": "string" }
+          ],
+          "description": "Whether approval is required (boolean or expression)"
+        },
+        "approvers": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "List of approvers"
+        },
+        "min_approvals": {
+          "type": "integer",
+          "minimum": 1,
+          "default": 1,
+          "description": "Minimum approvals needed"
+        },
+        "timeout_hours": {
+          "type": "integer",
+          "default": 72,
+          "description": "Hours before auto-reject"
+        },
+        "timeout_behavior": {
+          "type": "string",
+          "enum": ["reject", "approve", "extend", "pause"],
+          "default": "reject",
+          "description": "Behavior on timeout"
+        },
+        "auto_reject_on_change": {
+          "type": "boolean",
+          "default": true,
+          "description": "Reject if source changes"
+        },
+        "allow_self_approval": {
+          "type": "boolean",
+          "default": false,
+          "description": "Allow triggerer to approve"
+        },
+        "skip_for": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "branches": {
+                "type": "array",
+                "items": { "type": "string" }
+              },
+              "authors": {
+                "type": "array",
+                "items": { "type": "string" }
+              },
+              "labels": {
+                "type": "array",
+                "items": { "type": "string" }
+              }
+            }
+          },
+          "description": "Conditions to skip approval"
+        },
+        "notification": {
+          "type": "object",
+          "properties": {
+            "channels": {
+              "type": "array",
+              "items": { "type": "string" }
+            },
+            "message": {
+              "type": "string"
+            }
+          },
+          "description": "Approval request notification"
+        }
+      }
+    },
+
+    "rollback": {
+      "type": "object",
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "default": false,
+          "description": "Enable rollback"
+        },
+        "strategy": {
+          "type": "string",
+          "enum": ["revert_to_last_success", "revert_to_previous", "custom", "none"],
+          "default": "revert_to_last_success",
+          "description": "Rollback strategy"
+        },
+        "triggers": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["condition", "action"],
+            "properties": {
+              "condition": {
+                "type": "string",
+                "description": "Trigger condition expression"
+              },
+              "action": {
+                "type": "string",
+                "description": "Rollback action name"
+              }
+            }
+          },
+          "description": "Rollback triggers"
+        },
+        "actions": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "object",
+            "properties": {
+              "steps": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/$defs/step"
+                }
+              },
+              "timeout": {
+                "type": "integer"
+              },
+              "notify": {
+                "type": "boolean"
+              }
+            }
+          },
+          "description": "Rollback actions"
+        },
+        "preserve_logs": {
+          "type": "boolean",
+          "default": true,
+          "description": "Preserve logs on rollback"
+        },
+        "notify_on_rollback": {
+          "type": "boolean",
+          "default": true,
+          "description": "Send notification on rollback"
+        },
+        "max_rollback_attempts": {
+          "type": "integer",
+          "minimum": 1,
+          "default": 3,
+          "description": "Maximum rollback attempts"
+        }
+      }
+    },
+
+    "notifications": {
+      "type": "object",
+      "properties": {
+        "channels": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/notificationChannel"
+          },
+          "description": "Notification channels"
+        },
+        "templates": {
+          "type": "object",
+          "additionalProperties": { "type": "string" },
+          "description": "Message templates"
+        },
+        "rate_limit": {
+          "type": "object",
+          "properties": {
+            "max_per_hour": {
+              "type": "integer"
+            },
+            "deduplicate": {
+              "type": "boolean"
+            }
+          },
+          "description": "Rate limiting"
+        }
+      }
+    },
+
+    "notificationChannel": {
+      "type": "object",
+      "required": ["type", "events"],
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": ["slack", "email", "github_status", "webhook", "pagerduty", "teams"],
+          "description": "Channel type"
+        },
+        "events": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "started",
+              "stage_started",
+              "stage_complete",
+              "approval_required",
+              "approved",
+              "rejected",
+              "success",
+              "failure",
+              "rollback",
+              "timeout"
+            ]
+          },
+          "description": "Events to notify on"
+        },
+        "webhook": {
+          "type": "string",
+          "description": "Webhook URL (slack, teams)"
+        },
+        "channel": {
+          "type": "string",
+          "description": "Channel name (slack)"
+        },
+        "recipients": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Email recipients"
+        },
+        "url": {
+          "type": "string",
+          "description": "Webhook URL"
+        },
+        "method": {
+          "type": "string",
+          "enum": ["GET", "POST", "PUT"],
+          "default": "POST",
+          "description": "HTTP method"
+        },
+        "headers": {
+          "type": "object",
+          "additionalProperties": { "type": "string" },
+          "description": "HTTP headers"
+        },
+        "context": {
+          "type": "string",
+          "description": "GitHub status context"
+        },
+        "enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable channel"
+        }
+      }
+    },
+
+    "artifact": {
+      "type": "object",
+      "required": ["name"],
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Artifact identifier"
+        },
+        "path": {
+          "type": "string",
+          "description": "File glob pattern"
+        },
+        "source": {
+          "type": "string",
+          "description": "Stage output reference"
+        },
+        "format": {
+          "type": "string",
+          "enum": ["json", "yaml", "raw"],
+          "description": "Output format"
+        },
+        "retention_days": {
+          "type": "integer",
+          "minimum": 1,
+          "default": 30,
+          "description": "Days to retain"
+        },
+        "compression": {
+          "type": "string",
+          "enum": ["gzip", "none"],
+          "default": "none",
+          "description": "Compression type"
+        },
+        "required": {
+          "type": "boolean",
+          "default": false,
+          "description": "Fail if missing"
+        },
+        "condition": {
+          "type": "string",
+          "description": "Conditional preservation"
+        }
+      }
+    },
+
+    "state": {
+      "type": "object",
+      "properties": {
+        "persistence": {
+          "type": "boolean",
+          "default": false,
+          "description": "Enable state persistence"
+        },
+        "ttl": {
+          "type": "string",
+          "description": "Time to live (e.g., '30d', '168h')"
+        },
+        "tracked": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Automatically tracked values"
+        },
+        "custom": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["name", "value"],
+            "properties": {
+              "name": {
+                "type": "string"
+              },
+              "value": {
+                "type": "string"
+              },
+              "on": {
+                "type": "string",
+                "enum": ["success", "failure", "always"]
+              }
+            }
+          },
+          "description": "Custom state values"
+        },
+        "conditions": {
+          "type": "object",
+          "properties": {
+            "pause_on_consecutive_failures": {
+              "type": "integer"
+            },
+            "require_manual_after_rollback": {
+              "type": "boolean"
+            }
+          },
+          "description": "State-based conditions"
+        }
+      }
+    },
+
+    "postflight": {
+      "type": "object",
+      "description": "Actions executed after all stages complete. Handles tracker persistence, token metric collection, and conditional handlers.",
+      "properties": {
+        "tracker": {
+          "$ref": "#/$defs/postflightTracker",
+          "description": "Validation tracker integration for persisting pipeline results"
+        },
+        "on_success": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/postflightAction"
+          },
+          "description": "Actions to run when all gates pass"
+        },
+        "on_failure": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/postflightAction"
+          },
+          "description": "Actions to run when any gate fails"
+        },
+        "always": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/postflightAction"
+          },
+          "description": "Actions to run regardless of outcome"
+        }
+      }
+    },
+
+    "postflightTracker": {
+      "type": "object",
+      "description": "Configuration for saving pipeline results to the UluOps validation tracker via save_run.",
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable tracker persistence"
+        },
+        "project": {
+          "type": "string",
+          "description": "Tracker project name. Supports template expressions (e.g., '{{ pipeline.interface.name }}' or '$ARGUMENTS')",
+          "examples": ["{{ pipeline.interface.name }}", "$ARGUMENTS", "my-project"]
+        },
+        "workflow_type": {
+          "type": "string",
+          "description": "Workflow type identifier for the tracker run. Defaults to pipeline.interface.name",
+          "examples": ["api-server-validate", "cognitive-deep-dive"]
+        },
+        "include_token_metrics": {
+          "type": "boolean",
+          "default": true,
+          "description": "Collect token usage metrics from agent-metrics buffer for each validator"
+        },
+        "token_metrics_command": {
+          "type": "string",
+          "default": "agent-metrics buffer list --since 5m -f tracker",
+          "description": "Command to extract token metrics. Must output tracker-compatible format"
+        },
+        "field_mappings": {
+          "$ref": "#/$defs/postflightFieldMappings",
+          "description": "Maps pipeline output fields to tracker fields"
+        },
+        "verify_save": {
+          "type": "boolean",
+          "default": true,
+          "description": "After saving, verify that total_issues matches the saved count"
+        }
+      }
+    },
+
+    "postflightFieldMappings": {
+      "type": "object",
+      "description": "Maps pipeline stage outputs to tracker save_run fields.",
+      "properties": {
+        "score_source": {
+          "type": "string",
+          "default": "stage.gate.score",
+          "description": "Expression to extract validator scores from stage results"
+        },
+        "status_source": {
+          "type": "string",
+          "default": "stage.gate.decision",
+          "description": "Expression to extract PASS/FAIL status from stage results"
+        },
+        "model_source": {
+          "type": "string",
+          "default": "agent-metrics",
+          "description": "Source for model identification. 'agent-metrics' reads from buffer, or specify a static value"
+        },
+        "recommendations_source": {
+          "type": "string",
+          "default": "stage.output.issues",
+          "description": "Expression to extract issue recommendations from stage results"
+        }
+      }
+    },
+
+    "postflightAction": {
+      "type": "object",
+      "required": ["description"],
+      "properties": {
+        "description": {
+          "type": "string",
+          "description": "Human-readable description of the action"
+        },
+        "command": {
+          "type": "string",
+          "description": "Shell command to execute"
+        },
+        "condition": {
+          "type": "string",
+          "description": "Conditional expression for this action"
+        }
+      }
+    }
+  }
+}

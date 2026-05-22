@@ -1,0 +1,937 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://uluops.ai/schemas/wdl/v3.0.0/workflow.json",
+  "title": "Workflow Definition Language (WDL) Schema",
+  "description": "Schema for defining multi-step workflow orchestrations in the UluOps framework. v3.0.0 removes documentation-only blocks (handoffs, iteration, troubleshooting, diagrams) to produce lean runtime prompts under 250 lines.",
+  "version": "3.0.0",
+  "type": "object",
+  "required": ["workflow"],
+  "properties": {
+    "workflow": {
+      "type": "object",
+      "required": ["interface", "orchestration"],
+      "properties": {
+        "interface": {
+          "$ref": "#/$defs/interface"
+        },
+        "arguments": {
+          "$ref": "#/$defs/arguments",
+          "description": "CLI argument definitions for workflow invocation"
+        },
+        "context": {
+          "$ref": "#/$defs/context",
+          "description": "Context detection configuration for conditional phase execution"
+        },
+        "orchestration": {
+          "$ref": "#/$defs/orchestration",
+          "description": "Phase definitions, dependencies, and execution order"
+        },
+        "aggregation": {
+          "$ref": "#/$defs/aggregation",
+          "description": "How phase results are combined into workflow-level output"
+        },
+        "outputs": {
+          "$ref": "#/$defs/outputs",
+          "description": "Artifacts, verification, and tracking configuration"
+        },
+        "preflight": {
+          "$ref": "#/$defs/preflight",
+          "description": "Pre-execution validation checks"
+        },
+        "postflight": {
+          "$ref": "#/$defs/postflight",
+          "description": "Post-execution actions based on workflow decision"
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false,
+
+  "$defs": {
+
+    "interface": {
+      "type": "object",
+      "description": "Workflow identity and classification",
+      "required": ["name", "version", "displayName", "description", "domain"],
+      "properties": {
+        "name": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9]*(-[a-z0-9]+)*$",
+          "description": "Kebab-case identifier for the workflow",
+          "examples": ["ship", "post-implementation", "academy-pipeline"]
+        },
+        "version": {
+          "type": "string",
+          "pattern": "^\\d+\\.\\d+\\.\\d+$",
+          "description": "Semantic version (e.g., 1.0.0)"
+        },
+        "displayName": {
+          "type": "string",
+          "minLength": 3,
+          "maxLength": 50,
+          "description": "Human-readable display name"
+        },
+        "description": {
+          "type": "string",
+          "minLength": 20,
+          "maxLength": 500,
+          "description": "When to use + what it does + what phases it runs"
+        },
+        "domain": {
+          "$ref": "#/$defs/domain"
+        },
+        "duration": {
+          "type": "string",
+          "description": "Expected duration for the workflow",
+          "examples": ["6-15 minutes", "3-10 minutes"]
+        },
+        "model": {
+          "type": "string",
+          "enum": ["haiku", "sonnet", "opus"],
+          "default": "sonnet",
+          "description": "Default LLM model tier for all agents in this workflow"
+        }
+      },
+      "additionalProperties": false
+    },
+
+    "domain": {
+      "type": "string",
+      "enum": [
+        "software",
+        "security",
+        "compliance",
+        "legal",
+        "medical",
+        "financial",
+        "scientific",
+        "content",
+        "general",
+        "career",
+        "business",
+        "education",
+        "documentation"
+      ],
+      "description": "Primary domain this workflow targets"
+    },
+
+    "arguments": {
+      "type": "object",
+      "description": "CLI argument definitions for workflow invocation",
+      "properties": {
+        "positional": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/positionalArg"
+          },
+          "description": "Positional arguments in order"
+        },
+        "flags": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/flagDef"
+          },
+          "description": "Named flags (--flag or -f)"
+        },
+        "derived": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/derivedVar"
+          },
+          "description": "Variables computed from other arguments"
+        },
+        "examples": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/usageExample"
+          },
+          "maxItems": 3,
+          "description": "Usage examples (max 3)"
+        }
+      },
+      "additionalProperties": false
+    },
+
+    "positionalArg": {
+      "type": "object",
+      "description": "A positional CLI argument",
+      "required": ["name", "description"],
+      "properties": {
+        "name": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9]*(_[a-z0-9]+)*$",
+          "description": "Argument name (snake_case)"
+        },
+        "description": {
+          "type": "string",
+          "minLength": 5,
+          "maxLength": 200,
+          "description": "What the argument is for"
+        },
+        "required": {
+          "type": "boolean",
+          "default": false
+        },
+        "default": {
+          "description": "Default value if not provided"
+        }
+      },
+      "additionalProperties": false
+    },
+
+    "flagDef": {
+      "type": "object",
+      "description": "A named CLI flag",
+      "required": ["name", "description", "type"],
+      "properties": {
+        "name": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9]*(-[a-z0-9]+)*$",
+          "description": "Flag name without -- prefix (kebab-case)"
+        },
+        "short": {
+          "type": "string",
+          "pattern": "^[a-zA-Z]$",
+          "description": "Single-letter shorthand"
+        },
+        "description": {
+          "type": "string",
+          "minLength": 5,
+          "maxLength": 200
+        },
+        "type": {
+          "$ref": "#/$defs/flagType"
+        },
+        "default": {
+          "description": "Default value if flag not provided"
+        }
+      },
+      "additionalProperties": false
+    },
+
+    "flagType": {
+      "type": "string",
+      "enum": ["boolean", "string", "number", "array"],
+      "description": "Data type of the flag value"
+    },
+
+    "derivedVar": {
+      "type": "object",
+      "description": "A variable computed from other arguments",
+      "required": ["name", "source"],
+      "properties": {
+        "name": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9]*(_[a-z0-9]+)*$"
+        },
+        "source": {
+          "type": "string",
+          "description": "Expression to compute value"
+        }
+      },
+      "additionalProperties": false
+    },
+
+    "usageExample": {
+      "type": "object",
+      "required": ["command", "behavior"],
+      "properties": {
+        "command": {
+          "type": "string"
+        },
+        "behavior": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    },
+
+    "context": {
+      "type": "object",
+      "description": "Context detection for conditional phase execution",
+      "properties": {
+        "detectors": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/detector"
+          },
+          "description": "Context detectors to run at workflow start"
+        },
+        "variables": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/contextVariable"
+          },
+          "description": "Derived variables from detector results"
+        }
+      },
+      "additionalProperties": false
+    },
+
+    "detector": {
+      "type": "object",
+      "description": "A context detector that evaluates to true/false",
+      "required": ["id", "check"],
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9]*(_[a-z0-9]+)*$"
+        },
+        "check": {
+          "$ref": "#/$defs/checkType"
+        },
+        "path": {
+          "type": "string",
+          "description": "File or directory path"
+        },
+        "fallback_path": {
+          "type": "string",
+          "description": "Alternative path if primary fails"
+        },
+        "pattern": {
+          "type": "string",
+          "description": "Regex pattern (grep) or glob patterns comma-separated (find)"
+        },
+        "include": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "File patterns to include"
+        },
+        "exclude": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "File patterns or directories to exclude"
+        },
+        "min_matches": {
+          "type": "integer",
+          "minimum": 1,
+          "default": 1
+        },
+        "command": {
+          "type": "string",
+          "description": "Shell command (for command check)"
+        },
+        "expect_output": {
+          "type": "boolean"
+        },
+        "field": {
+          "type": "string",
+          "description": "JSON/YAML field path (for json_field, yaml_field)"
+        },
+        "expect": {
+          "description": "Expected value for field check",
+          "oneOf": [
+            { "type": "string" },
+            { "type": "boolean" },
+            { "type": "number" },
+            { "type": "null" }
+          ]
+        },
+        "name": {
+          "type": "string",
+          "description": "Environment variable name (for env_var check)"
+        }
+      },
+      "additionalProperties": false
+    },
+
+    "checkType": {
+      "type": "string",
+      "enum": [
+        "file_exists",
+        "dir_exists",
+        "grep",
+        "find",
+        "command",
+        "json_field",
+        "yaml_field",
+        "env_var"
+      ]
+    },
+
+    "contextVariable": {
+      "type": "object",
+      "required": ["name", "source"],
+      "properties": {
+        "name": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9]*(_[a-z0-9]+)*$"
+        },
+        "source": {
+          "type": "string"
+        },
+        "default": {
+          "description": "Default if source evaluation fails"
+        }
+      },
+      "additionalProperties": false
+    },
+
+    "orchestration": {
+      "type": "object",
+      "description": "Phase definitions and execution configuration",
+      "required": ["phases"],
+      "properties": {
+        "execution_mode": {
+          "$ref": "#/$defs/executionMode"
+        },
+        "phases": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/phase"
+          }
+        },
+        "on_failure": {
+          "$ref": "#/$defs/onFailure",
+          "default": "stop"
+        },
+        "max_parallel": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 10,
+          "default": 1
+        },
+        "timeout": {
+          "type": "integer",
+          "minimum": 1000,
+          "maximum": 3600000,
+          "description": "Workflow timeout in milliseconds"
+        }
+      },
+      "additionalProperties": false
+    },
+
+    "executionMode": {
+      "type": "object",
+      "properties": {
+        "prompt": {
+          "type": "boolean",
+          "default": false,
+          "description": "Whether to prompt user for execution mode"
+        },
+        "default": {
+          "type": "string",
+          "enum": ["sequential", "parallel"],
+          "default": "sequential"
+        },
+        "parallel_groups": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/parallelGroup"
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+
+    "parallelGroup": {
+      "type": "object",
+      "required": ["number", "phases"],
+      "properties": {
+        "number": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "mode": {
+          "type": "string",
+          "enum": ["gate", "parallel", "sequential", "always"]
+        },
+        "phases": {
+          "type": "array",
+          "items": { "type": "string" }
+        }
+      },
+      "additionalProperties": false
+    },
+
+    "phase": {
+      "type": "object",
+      "description": "A workflow phase. Use 'steps' for mixed command/agent references, or 'commands' for command-only.",
+      "required": ["id", "name"],
+      "anyOf": [
+        { "required": ["steps"] },
+        { "required": ["commands"] }
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9]*(-[a-z0-9]+)*$"
+        },
+        "name": {
+          "type": "string",
+          "minLength": 3,
+          "maxLength": 50
+        },
+        "type": {
+          "$ref": "#/$defs/phaseType",
+          "default": "validate"
+        },
+        "group": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 100
+        },
+        "barrier": {
+          "type": "boolean",
+          "default": false
+        },
+        "steps": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/stepRef"
+          }
+        },
+        "commands": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/commandRef"
+          },
+          "description": "Deprecated: Use 'steps' instead."
+        },
+        "depends_on": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9]*(-[a-z0-9]+)*$"
+          },
+          "uniqueItems": true
+        },
+        "condition": {
+          "type": "string",
+          "description": "Expression that must be true for phase to run"
+        },
+        "skip_if": {
+          "type": "string",
+          "description": "Expression that if true, skips this phase"
+        },
+        "gate": {
+          "$ref": "#/$defs/gate"
+        },
+        "inputs": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          },
+          "description": "Input mappings for execute phases"
+        },
+        "timeout": {
+          "type": "integer",
+          "minimum": 1000,
+          "maximum": 1800000
+        },
+        "focus": {
+          "type": "array",
+          "items": { "type": "string" },
+          "maxItems": 5,
+          "description": "Key areas this phase focuses on (max 5)"
+        }
+      },
+      "additionalProperties": false
+    },
+
+    "phaseType": {
+      "type": "string",
+      "enum": ["validate", "execute", "mixed"]
+    },
+
+    "commandRef": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9]*(-[a-z0-9]+)*@(\\d+\\.\\d+\\.\\d+|>=\\d+\\.\\d+\\.\\d+|\\^\\d+\\.\\d+\\.\\d+|~\\d+\\.\\d+\\.\\d+|latest)$",
+      "description": "Command reference: name@version"
+    },
+
+    "wdlAgentRef": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9]*(-[a-z0-9]+)*@(\\d+\\.\\d+\\.\\d+|>=\\d+\\.\\d+\\.\\d+|\\^\\d+\\.\\d+\\.\\d+|~\\d+\\.\\d+\\.\\d+|latest)$",
+      "description": "Direct agent reference: name@version"
+    },
+
+    "stepRef": {
+      "type": "object",
+      "description": "A step: either a command or agent reference",
+      "oneOf": [
+        {
+          "required": ["command"],
+          "properties": {
+            "command": {
+              "$ref": "#/$defs/commandRef"
+            }
+          },
+          "additionalProperties": false
+        },
+        {
+          "required": ["agent"],
+          "properties": {
+            "agent": {
+              "$ref": "#/$defs/wdlAgentRef"
+            }
+          },
+          "additionalProperties": false
+        }
+      ]
+    },
+
+    "gate": {
+      "type": "object",
+      "properties": {
+        "threshold": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 100
+        },
+        "warn_threshold": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 100
+        },
+        "aggregate": {
+          "$ref": "#/$defs/aggregateMethod",
+          "default": "min"
+        },
+        "on_fail": {
+          "$ref": "#/$defs/gateAction",
+          "default": "stop"
+        },
+        "on_warn": {
+          "$ref": "#/$defs/gateAction"
+        }
+      },
+      "additionalProperties": false
+    },
+
+    "aggregateMethod": {
+      "type": "string",
+      "enum": ["min", "max", "average", "weighted_average", "all", "any"]
+    },
+
+    "gateAction": {
+      "type": "string",
+      "enum": ["stop", "warn", "skip", "abort"]
+    },
+
+    "onFailure": {
+      "type": "string",
+      "enum": ["stop", "continue", "abort"]
+    },
+
+    "aggregation": {
+      "type": "object",
+      "description": "Workflow-level result aggregation",
+      "properties": {
+        "score": {
+          "$ref": "#/$defs/scoreAggregation"
+        },
+        "decision": {
+          "$ref": "#/$defs/decisionConfig"
+        }
+      },
+      "additionalProperties": false
+    },
+
+    "scoreAggregation": {
+      "type": "object",
+      "properties": {
+        "method": {
+          "$ref": "#/$defs/aggregateMethod"
+        },
+        "weights": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          },
+          "description": "Phase weights (should sum to 1.0)"
+        },
+        "skip_missing": {
+          "type": "boolean",
+          "default": true
+        }
+      },
+      "additionalProperties": false
+    },
+
+    "decisionConfig": {
+      "type": "object",
+      "description": "Decision labels mapped to threshold expressions",
+      "additionalProperties": {
+        "type": "string"
+      }
+    },
+
+    "outputs": {
+      "type": "object",
+      "properties": {
+        "artifacts": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/artifact"
+          }
+        },
+        "variables": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/outputVariable"
+          }
+        },
+        "verification": {
+          "$ref": "#/$defs/verification"
+        },
+        "tracking": {
+          "$ref": "#/$defs/trackingConfig"
+        }
+      },
+      "additionalProperties": false
+    },
+
+    "artifact": {
+      "type": "object",
+      "required": ["id", "type", "path"],
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9]*(-[a-z0-9]+)*$"
+        },
+        "type": {
+          "$ref": "#/$defs/artifactType"
+        },
+        "template": {
+          "type": "string"
+        },
+        "path": {
+          "type": "string"
+        },
+        "condition": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    },
+
+    "artifactType": {
+      "type": "string",
+      "enum": ["markdown", "json", "yaml", "html"]
+    },
+
+    "outputVariable": {
+      "type": "object",
+      "required": ["name", "source"],
+      "properties": {
+        "name": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9]*(_[a-z0-9]+)*$"
+        },
+        "source": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    },
+
+    "verification": {
+      "type": "object",
+      "properties": {
+        "post_save": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/verifyCheck"
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+
+    "verifyCheck": {
+      "type": "object",
+      "required": ["check", "on_mismatch", "message"],
+      "properties": {
+        "check": {
+          "type": "string",
+          "enum": ["count_match", "query_saved", "file_exists"]
+        },
+        "sources": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "provider": {
+          "type": "string"
+        },
+        "query": {
+          "type": "object",
+          "additionalProperties": true
+        },
+        "compare": {
+          "type": "string"
+        },
+        "path": {
+          "type": "string"
+        },
+        "on_mismatch": {
+          "type": "string",
+          "enum": ["block", "warn", "skip"]
+        },
+        "message": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    },
+
+    "trackingConfig": {
+      "type": "object",
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "default": false
+        },
+        "provider": {
+          "type": "string"
+        },
+        "payload": {
+          "type": "object",
+          "additionalProperties": true
+        }
+      },
+      "additionalProperties": false
+    },
+
+    "preflight": {
+      "type": "object",
+      "properties": {
+        "checks": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/preflightCheck"
+          }
+        },
+        "extraction": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/preflightExtraction"
+          },
+          "description": "Pre-phase metadata gathering steps"
+        }
+      },
+      "additionalProperties": false
+    },
+
+    "preflightExtraction": {
+      "type": "object",
+      "required": ["id", "type"],
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9]*(_[a-z0-9]+)*$"
+        },
+        "type": {
+          "type": "string",
+          "enum": ["frontmatter", "command", "json_field", "yaml_field", "regex"]
+        },
+        "description": {
+          "type": "string",
+          "maxLength": 300
+        },
+        "fields": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "command": {
+          "type": "string"
+        },
+        "pattern": {
+          "type": "string"
+        },
+        "path": {
+          "type": "string"
+        },
+        "store_as": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9]*(_[a-z0-9]+)*$"
+        }
+      },
+      "additionalProperties": false
+    },
+
+    "preflightCheck": {
+      "type": "object",
+      "required": ["check"],
+      "properties": {
+        "check": {
+          "$ref": "#/$defs/checkType"
+        },
+        "path": { "type": "string" },
+        "pattern": { "type": "string" },
+        "include": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "exclude": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "min_matches": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "command": { "type": "string" },
+        "expect_output": { "type": "boolean" },
+        "expect_empty": { "type": "boolean" },
+        "field": { "type": "string" },
+        "expect": {
+          "oneOf": [
+            { "type": "string" },
+            { "type": "boolean" },
+            { "type": "number" },
+            { "type": "null" }
+          ]
+        },
+        "name": { "type": "string" },
+        "message": { "type": "string" },
+        "on_fail": {
+          "type": "string",
+          "enum": ["abort", "warn", "skip"],
+          "default": "abort"
+        }
+      },
+      "additionalProperties": false
+    },
+
+    "postflight": {
+      "type": "object",
+      "description": "Post-execution actions mapped to decision outcomes",
+      "properties": {
+        "on_pass": {
+          "$ref": "#/$defs/postflightAction"
+        },
+        "on_warn": {
+          "$ref": "#/$defs/postflightAction"
+        },
+        "on_fail": {
+          "$ref": "#/$defs/postflightAction"
+        }
+      },
+      "additionalProperties": true
+    },
+
+    "postflightAction": {
+      "type": "object",
+      "properties": {
+        "message": {
+          "type": "string",
+          "maxLength": 200,
+          "description": "Short message (single line preferred)"
+        },
+        "exit_code": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 255
+        }
+      },
+      "additionalProperties": false
+    }
+  }
+}

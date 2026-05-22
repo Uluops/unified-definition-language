@@ -1,0 +1,3219 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://uluops.ai/schemas/adl/v1.16.0/agent.json",
+  "title": "Agent Definition Language (ADL) Schema",
+  "description": "Unified schema for defining validator, executor, analyst, generator, explorer, and forecaster agents in the UluOps framework. Supersedes ADL v1.15.0. Tightens allOf rules to forbid forecast section on non-forecaster agent types, preventing silent template absorption of forecaster-only fields.",
+  "version": "1.16.0",
+  "type": "object",
+  "required": [
+    "agent"
+  ],
+  "properties": {
+    "agent": {
+      "type": "object",
+      "required": [
+        "interface"
+      ],
+      "properties": {
+        "interface": {
+          "$ref": "#/$defs/interface"
+        },
+        "defaults": {
+          "$ref": "#/$defs/defaults"
+        },
+        "context": {
+          "$ref": "#/$defs/context",
+          "description": "Execution context configuration"
+        },
+        "mission": {
+          "$ref": "#/$defs/mission",
+          "description": "Agent identity, purpose framing, and behavioral boundaries (v1.2.0)"
+        },
+        "knowledge_base": {
+          "$ref": "#/$defs/knowledgeBase",
+          "description": "Embedded domain expertise for scoring categories (v1.2.0)"
+        },
+        "scoring": {
+          "$ref": "#/$defs/scoring",
+          "description": "Required for validators, forbidden for executors"
+        },
+        "tasks": {
+          "$ref": "#/$defs/tasks",
+          "description": "Required for executors, forbidden for validators"
+        },
+        "decisions": {
+          "$ref": "#/$defs/decisions",
+          "description": "Required for validators"
+        },
+        "completion": {
+          "$ref": "#/$defs/completion",
+          "description": "Required for executors"
+        },
+        "auto_fail": {
+          "$ref": "#/$defs/autoFail"
+        },
+        "deductions": {
+          "$ref": "#/$defs/deductions"
+        },
+        "rollback": {
+          "$ref": "#/$defs/rollback",
+          "description": "Only applicable to executors"
+        },
+        "process": {
+          "$ref": "#/$defs/process"
+        },
+        "output": {
+          "$ref": "#/$defs/output"
+        },
+        "edge_cases": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/edgeCase"
+          }
+        },
+        "tone": {
+          "$ref": "#/$defs/tone"
+        },
+        "forecast": {
+          "$ref": "#/$defs/forecast",
+          "description": "Forecaster-specific configuration for prediction-oriented agents (v1.9.0)"
+        },
+        "handoff": {
+          "$ref": "#/$defs/handoff",
+          "description": "Agent composition contracts for upstream/downstream data flow"
+        },
+        "cognitive_lens": {
+          "$ref": "#/$defs/cognitiveLens",
+          "description": "Cognitive lens extension for epistemic framework encoding (v1.11.0)"
+        },
+        "composition": {
+          "$ref": "#/$defs/composition",
+          "description": "Composition metadata for agent pairing and blind spot coverage (v1.11.0)"
+        }
+      },
+      "allOf": [
+        {
+          "$comment": "Validators require scoring and decisions. Forecast forbidden (v1.16.0).",
+          "if": {
+            "properties": {
+              "interface": {
+                "properties": {
+                  "agentType": {
+                    "const": "validator"
+                  }
+                },
+                "required": [
+                  "agentType"
+                ]
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "interface",
+              "scoring",
+              "decisions"
+            ],
+            "properties": {
+              "tasks": false,
+              "completion": false,
+              "rollback": false,
+              "forecast": false
+            }
+          }
+        },
+        {
+          "$comment": "Executors require tasks and completion. Forecast forbidden (v1.16.0).",
+          "if": {
+            "properties": {
+              "interface": {
+                "properties": {
+                  "agentType": {
+                    "const": "executor"
+                  }
+                },
+                "required": [
+                  "agentType"
+                ]
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "interface",
+              "tasks",
+              "completion"
+            ],
+            "properties": {
+              "scoring": false,
+              "decisions": false,
+              "deductions": false,
+              "forecast": false
+            }
+          }
+        },
+        {
+          "$comment": "Analysts require process phases. May optionally include scoring/decisions for assessment-style agents. Forecast forbidden (v1.16.0).",
+          "if": {
+            "properties": {
+              "interface": {
+                "properties": {
+                  "agentType": {
+                    "const": "analyst"
+                  }
+                },
+                "required": [
+                  "agentType"
+                ]
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "interface",
+              "process"
+            ],
+            "properties": {
+              "tasks": false,
+              "completion": false,
+              "rollback": false,
+              "forecast": false
+            }
+          }
+        },
+        {
+          "$comment": "Generators require tasks defining what to produce. Scoring/deductions/auto_fail are forbidden since generators produce artifacts, not judgments. Forecast forbidden (v1.16.0).",
+          "if": {
+            "properties": {
+              "interface": {
+                "properties": {
+                  "agentType": {
+                    "const": "generator"
+                  }
+                },
+                "required": [
+                  "agentType"
+                ]
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "interface",
+              "tasks"
+            ],
+            "properties": {
+              "scoring": false,
+              "deductions": false,
+              "auto_fail": false,
+              "forecast": false
+            }
+          }
+        },
+        {
+          "$comment": "Explorers require only interface and mission. Lightweight, tool-augmented agents with no scoring framework. Forecast forbidden (v1.16.0).",
+          "if": {
+            "properties": {
+              "interface": {
+                "properties": {
+                  "agentType": {
+                    "const": "explorer"
+                  }
+                },
+                "required": [
+                  "agentType"
+                ]
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "interface",
+              "mission"
+            ],
+            "properties": {
+              "scoring": false,
+              "decisions": false,
+              "deductions": false,
+              "auto_fail": false,
+              "tasks": false,
+              "completion": false,
+              "rollback": false,
+              "forecast": false
+            }
+          }
+        },
+        {
+          "$comment": "Forecasters require interface, mission, and process. Prediction-oriented agents that model future states. May include optional forecast section and scoring/decisions for assessment-style forecasters. Tasks/completion/rollback are forbidden. (v1.9.0)",
+          "if": {
+            "properties": {
+              "interface": {
+                "properties": {
+                  "agentType": {
+                    "const": "forecaster"
+                  }
+                },
+                "required": [
+                  "agentType"
+                ]
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "interface",
+              "mission",
+              "process"
+            ],
+            "properties": {
+              "tasks": false,
+              "completion": false,
+              "rollback": false
+            }
+          }
+        }
+      ]
+    }
+  },
+  "$defs": {
+    "interface": {
+      "type": "object",
+      "required": [
+        "name",
+        "version",
+        "displayName",
+        "description",
+        "agentType",
+        "domain"
+      ],
+      "properties": {
+        "name": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9]*(-[a-z0-9]+)*$",
+          "description": "Kebab-case identifier for the agent",
+          "examples": [
+            "code-validator",
+            "security-analyst",
+            "api-contract-validator",
+            "code-fixer"
+          ]
+        },
+        "version": {
+          "type": "string",
+          "pattern": "^\\d+\\.\\d+\\.\\d+$",
+          "description": "Semantic version (e.g., 1.0.0)",
+          "examples": [
+            "1.0.0",
+            "1.2.3",
+            "2.0.0"
+          ]
+        },
+        "displayName": {
+          "type": "string",
+          "minLength": 3,
+          "maxLength": 50,
+          "description": "Human-readable display name",
+          "examples": [
+            "Code Validator",
+            "Security Analyst",
+            "API Contract Validator"
+          ]
+        },
+        "description": {
+          "type": "string",
+          "minLength": 20,
+          "maxLength": 1000,
+          "description": "When to use + what it does + what it blocks/enables"
+        },
+        "agentType": {
+          "type": "string",
+          "enum": [
+            "validator",
+            "executor",
+            "analyst",
+            "generator",
+            "explorer",
+            "forecaster"
+          ],
+          "description": "Agent type discriminator"
+        },
+        "domain": {
+          "$ref": "#/$defs/domain"
+        },
+        "subdomain": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9]*(-[a-z0-9]+)*$",
+          "description": "Optional refinement of domain",
+          "examples": [
+            "quality",
+            "security",
+            "testing",
+            "automation"
+          ]
+        },
+        "domain_profile": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9]*(-[a-z0-9]+)*$",
+          "description": "Reference to a domain profile (e.g., 'legal', 'medical', 'software'). Profiles provide domain-specific severity descriptions, issue types, edge cases, and terminology. If omitted, defaults to the domain value. Profiles are loaded from udl/definition-languages/profiles/{name}.profile.yaml. (v1.6.0)",
+          "examples": [
+            "software",
+            "legal",
+            "medical",
+            "financial"
+          ]
+        },
+        "risk_level": {
+          "type": "string",
+          "enum": [
+            "low",
+            "standard",
+            "high",
+            "critical"
+          ],
+          "default": "standard",
+          "description": "Risk classification affecting default threshold selection"
+        },
+        "tools": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "Read",
+              "Grep",
+              "Glob",
+              "Bash",
+              "Web",
+              "API",
+              "MCP"
+            ]
+          },
+          "minItems": 1,
+          "uniqueItems": true,
+          "description": "Runtime capabilities required by this agent"
+        },
+        "tags": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9]*(-[a-z0-9]+)*$"
+          },
+          "uniqueItems": true,
+          "description": "Searchable tags for discovery",
+          "examples": [
+            [
+              "typescript",
+              "javascript",
+              "quality"
+            ],
+            [
+              "python",
+              "security"
+            ]
+          ]
+        },
+        "triggers": {
+          "$ref": "#/$defs/triggers"
+        },
+        "dependencies": {
+          "$ref": "#/$defs/dependencies"
+        },
+        "epistemic_nature": {
+          "$ref": "#/$defs/epistemicNature"
+        }
+      }
+    },
+    "epistemicNature": {
+      "type": "object",
+      "description": "Multi-axis classification of the agent's epistemic characteristics. Each axis is independent and optional. Supports empirical analysis of agent effectiveness and helps consumers understand what kind of claims an agent makes. (v1.13.0)",
+      "properties": {
+        "verifiability": {
+          "type": "string",
+          "enum": [
+            "mechanically_checkable",
+            "expert_judgment",
+            "not_checkable"
+          ],
+          "description": "Can a third party confirm the finding? mechanically_checkable: binary truth, deterministic check (file exists, type compiles). expert_judgment: requires domain knowledge to evaluate. not_checkable: recommendations, opinions, design preferences."
+        },
+        "determinism": {
+          "type": "string",
+          "enum": [
+            "deterministic",
+            "stochastic",
+            "environment_dependent"
+          ],
+          "description": "Same input, same output? deterministic: identical input always produces identical findings. stochastic: LLM variance may produce different findings across runs. environment_dependent: findings depend on runtime state."
+        },
+        "claim_type": {
+          "type": "string",
+          "enum": [
+            "factual",
+            "normative",
+            "observational"
+          ],
+          "description": "What kind of assertion does the agent make? factual: claims about what IS. normative: claims about what SHOULD BE. observational: claims about what was NOTICED."
+        }
+      },
+      "additionalProperties": false
+    },
+    "domain": {
+      "type": "string",
+      "enum": [
+        "software",
+        "security",
+        "compliance",
+        "legal",
+        "medical",
+        "financial",
+        "scientific",
+        "content",
+        "general",
+        "career",
+        "business",
+        "education",
+        "documentation",
+        "cognitive-lens"
+      ],
+      "description": "Primary domain this agent targets. Includes VDL-compatible domains for backward compatibility. cognitive-lens added in v1.11.0 for epistemic framework agents."
+    },
+    "triggers": {
+      "type": "object",
+      "properties": {
+        "file_patterns": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Glob patterns that activate this agent",
+          "examples": [
+            [
+              "src/**/*.ts",
+              "src/**/*.js"
+            ],
+            [
+              "**/*.py"
+            ]
+          ]
+        },
+        "project_markers": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Files whose presence triggers this agent",
+          "examples": [
+            [
+              "package.json",
+              "tsconfig.json"
+            ],
+            [
+              "pyproject.toml",
+              "setup.py"
+            ]
+          ]
+        },
+        "explicit_only": {
+          "type": "boolean",
+          "default": false,
+          "description": "Only run when explicitly invoked"
+        }
+      }
+    },
+    "dependencies": {
+      "type": "object",
+      "properties": {
+        "requires": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Agents recommended to run before this one for optimal results (advisory — informs workflow phase ordering, does not create execution-time coupling)"
+        },
+        "recommends": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Agents that complement this one (advisory — pairing guidance for workflow authors)"
+        },
+        "conflicts": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Agents that produce redundant or contradictory analysis (advisory — helps workflow authors avoid combining conflicting perspectives)"
+        }
+      }
+    },
+    "defaults": {
+      "type": "object",
+      "properties": {
+        "model": {
+          "oneOf": [
+            {
+              "type": "string",
+              "enum": [
+                "haiku",
+                "sonnet",
+                "opus"
+              ],
+              "description": "Model alias"
+            },
+            {
+              "type": "string",
+              "pattern": "^(haiku|sonnet|opus)-\\d+(\\.\\d+)?$",
+              "description": "Model with version qualifier"
+            }
+          ],
+          "default": "sonnet",
+          "description": "LLM model to use"
+        },
+        "timeout": {
+          "type": "integer",
+          "minimum": 1000,
+          "maximum": 3600000,
+          "default": 300000,
+          "description": "Maximum execution time in milliseconds"
+        },
+        "max_tokens": {
+          "type": "integer",
+          "minimum": 1000,
+          "maximum": 200000,
+          "description": "Maximum tokens for model response"
+        },
+        "temperature": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1,
+          "default": 0,
+          "description": "Model temperature (0 = deterministic)"
+        }
+      }
+    },
+    "context": {
+      "type": "object",
+      "description": "Execution context configuration",
+      "properties": {
+        "working_directory": {
+          "type": "string",
+          "description": "Base directory for relative paths",
+          "examples": [
+            ".",
+            "./src",
+            "/workspace"
+          ]
+        },
+        "environment": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          },
+          "description": "Environment variables to set"
+        },
+        "timeout_behavior": {
+          "type": "string",
+          "enum": [
+            "fail",
+            "warn",
+            "continue"
+          ],
+          "default": "fail",
+          "description": "Behavior when timeout is reached"
+        },
+        "shell": {
+          "type": "string",
+          "enum": [
+            "bash",
+            "sh",
+            "zsh",
+            "powershell"
+          ],
+          "default": "bash",
+          "description": "Shell to use for command execution"
+        },
+        "data_sources": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/dataSource"
+          },
+          "description": "External data sources the agent can access (v1.5.1)"
+        }
+      }
+    },
+    "mission": {
+      "type": "object",
+      "description": "Agent identity, purpose framing, and behavioral boundaries (v1.2.0, extended v1.5.0)",
+      "properties": {
+        "opener": {
+          "type": "string",
+          "minLength": 20,
+          "maxLength": 2000,
+          "description": "Present-tense immersive opening statement"
+        },
+        "stakes": {
+          "type": "string",
+          "maxLength": 1000,
+          "description": "Why this validation matters - consequences of pass/fail"
+        },
+        "outcome_framing": {
+          "type": "string",
+          "maxLength": 1000,
+          "description": "What the agent produces - decision format and deliverables"
+        },
+        "role_boundaries": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "maxLength": 800
+          },
+          "maxItems": 5,
+          "description": "Clarifications about agent scope and limitations"
+        },
+        "taxonomy_mandate": {
+          "type": "boolean",
+          "default": true,
+          "description": "Whether every issue must include failure taxonomy classification"
+        },
+        "vocabulary_rationale": {
+          "type": "string",
+          "maxLength": 2000,
+          "description": "Explains why the decision vocabulary (CONSISTENT/INCONSISTENT, PASS/FAIL, etc.) was chosen for this domain (v1.5.0)"
+        },
+        "explicit_prohibitions": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "maxLength": 800
+          },
+          "maxItems": 10,
+          "description": "Actions the agent must NOT do - hard boundaries to prevent overreach (v1.5.0)"
+        },
+        "epistemic_limitations": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "maxLength": 1500
+          },
+          "maxItems": 10,
+          "description": "Explicit boundaries of what this agent cannot assess or guarantee (v1.7.0)"
+        }
+      }
+    },
+    "knowledgeBase": {
+      "type": "object",
+      "description": "Embedded domain expertise for scoring categories (v1.2.0)",
+      "properties": {
+        "sections": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/knowledgeSection"
+          },
+          "description": "Knowledge sections, typically one per scoring category"
+        },
+        "failure_code_examples": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/failureCodeExample"
+          },
+          "description": "Examples mapping issues to failure taxonomy codes with explanations (v1.3.0)"
+        },
+        "global_references": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Standards that apply across all sections (e.g., OWASP Top 10)"
+        },
+        "key_definitions": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          },
+          "description": "Key term definitions for the agent's domain vocabulary (v1.7.0)"
+        },
+        "domain_taxonomy": {
+          "$ref": "#/$defs/domainTaxonomy",
+          "description": "Domain-specific classification taxonomy with categories and optional rating scale (v1.7.0)"
+        }
+      }
+    },
+    "knowledgeSection": {
+      "type": "object",
+      "required": [
+        "category_ref"
+      ],
+      "properties": {
+        "category_ref": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9]*(_[a-z0-9]+)*$",
+          "description": "References scoring.categories[].id"
+        },
+        "description": {
+          "type": "string",
+          "description": "Description of what this knowledge section covers (v1.7.0)"
+        },
+        "what_to_check": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Checklist of items to evaluate"
+        },
+        "detection_patterns": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/detectionPattern"
+          },
+          "description": "Patterns for identifying issues vs. false positives"
+        },
+        "red_flags": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/codeExample"
+          },
+          "description": "Examples of problematic patterns"
+        },
+        "safe_patterns": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/codeExample"
+          },
+          "description": "Examples of correct implementations"
+        },
+        "references": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "External references (CWE, OWASP, RFCs)"
+        },
+        "common_mistakes": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/commonMistake"
+          },
+          "description": "Frequent errors with corrections"
+        }
+      }
+    },
+    "detectionPattern": {
+      "type": "object",
+      "required": [
+        "label",
+        "severity"
+      ],
+      "properties": {
+        "label": {
+          "type": "string",
+          "description": "Human-readable pattern name (e.g., 'CRITICAL - Hardcoded secrets')"
+        },
+        "description": {
+          "type": "string",
+          "description": "When this pattern applies"
+        },
+        "pattern": {
+          "type": "string",
+          "description": "Regex or glob pattern for detection"
+        },
+        "severity": {
+          "$ref": "#/$defs/severityCode"
+        },
+        "false_positive_hint": {
+          "type": "string",
+          "description": "How to distinguish from false positives"
+        }
+      }
+    },
+    "codeExample": {
+      "type": "object",
+      "required": [
+        "description",
+        "code"
+      ],
+      "properties": {
+        "description": {
+          "type": "string",
+          "description": "What this example demonstrates"
+        },
+        "code": {
+          "type": "string",
+          "description": "Code snippet (may include comments)"
+        },
+        "language": {
+          "type": "string",
+          "default": "javascript",
+          "description": "Programming language for syntax highlighting"
+        },
+        "severity": {
+          "$ref": "#/$defs/severityCode",
+          "description": "For red_flags: severity of this pattern"
+        },
+        "why": {
+          "type": "string",
+          "description": "Explanation of why this is good/bad"
+        },
+        "anti_pattern": {
+          "type": "boolean",
+          "default": false,
+          "description": "Whether this example demonstrates an anti-pattern rather than a positive example (v1.7.0)"
+        }
+      }
+    },
+    "commonMistake": {
+      "type": "object",
+      "required": [
+        "mistake",
+        "why_wrong",
+        "correct_approach"
+      ],
+      "properties": {
+        "mistake": {
+          "type": "string",
+          "description": "Description of the common mistake"
+        },
+        "why_wrong": {
+          "type": "string",
+          "description": "Explanation of why it's problematic"
+        },
+        "correct_approach": {
+          "type": "string",
+          "description": "How to do it correctly"
+        }
+      }
+    },
+    "partialScore": {
+      "type": "object",
+      "required": [
+        "points",
+        "condition"
+      ],
+      "properties": {
+        "points": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Points awarded when condition is met"
+        },
+        "condition": {
+          "type": "string",
+          "description": "Human-readable condition (e.g., '\u226595% adherence')"
+        },
+        "condition_expression": {
+          "type": "string",
+          "description": "Machine-parseable condition (e.g., 'adherence >= 0.95')"
+        },
+        "label": {
+          "type": "string",
+          "description": "Optional label for this tier (e.g., 'Full credit')"
+        }
+      }
+    },
+    "definitionClarification": {
+      "type": "object",
+      "required": [
+        "term",
+        "definition"
+      ],
+      "properties": {
+        "term": {
+          "type": "string",
+          "description": "The term being defined"
+        },
+        "definition": {
+          "type": "string",
+          "description": "Clear definition of the term"
+        }
+      }
+    },
+    "compoundCondition": {
+      "type": "object",
+      "required": [
+        "also_true"
+      ],
+      "properties": {
+        "also_true": {
+          "type": "string",
+          "description": "Another edge case ID that may co-occur"
+        },
+        "behavior_override": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "What to do when BOTH conditions are true"
+        },
+        "priority": {
+          "type": "string",
+          "enum": [
+            "this",
+            "other",
+            "merge"
+          ],
+          "default": "merge",
+          "description": "Which edge case takes precedence"
+        }
+      }
+    },
+    "decisionOverride": {
+      "type": "object",
+      "properties": {
+        "affects_decision": {
+          "type": "boolean",
+          "default": false,
+          "description": "Whether this edge case can change the final decision"
+        },
+        "forced_decision": {
+          "type": "string",
+          "enum": [
+            "positive",
+            "conditional",
+            "negative"
+          ],
+          "description": "If affects_decision=true, which decision to force"
+        },
+        "override_rationale": {
+          "type": "string",
+          "description": "Why this edge case justifies overriding the score-based decision"
+        }
+      }
+    },
+    "scoring": {
+      "type": "object",
+      "required": [
+        "maxScore",
+        "categories"
+      ],
+      "properties": {
+        "maxScore": {
+          "type": "integer",
+          "const": 100,
+          "description": "Maximum score (always 100)"
+        },
+        "categories": {
+          "type": "array",
+          "minItems": 4,
+          "maxItems": 6,
+          "items": {
+            "$ref": "#/$defs/category"
+          },
+          "description": "Scoring categories (4-6 required). Sum of weights must equal 100."
+        },
+        "calibration_examples": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/calibrationExample"
+          },
+          "description": "Score-to-scenario examples for consistent LLM scoring calibration (v1.3.0)"
+        },
+        "constraints": {
+          "$ref": "#/$defs/scoringConstraints"
+        },
+        "interpretation": {
+          "type": "string",
+          "maxLength": 3000,
+          "description": "How to interpret the total score - guidance for understanding what scores mean (v1.7.0)"
+        },
+        "weight_rationale": {
+          "type": "string",
+          "maxLength": 3000,
+          "description": "Explanation of why categories are weighted as they are (v1.7.0)"
+        }
+      }
+    },
+    "category": {
+      "type": "object",
+      "required": [
+        "id",
+        "name",
+        "weight",
+        "criteria"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9]*(_[a-z0-9]+)*$",
+          "description": "Snake_case identifier"
+        },
+        "name": {
+          "type": "string",
+          "description": "Display name"
+        },
+        "weight": {
+          "type": "integer",
+          "minimum": 10,
+          "maximum": 30,
+          "description": "Points for this category (10-30)"
+        },
+        "description": {
+          "type": "string",
+          "description": "What this category evaluates"
+        },
+        "criteria": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 10,
+          "items": {
+            "$ref": "#/$defs/criterion"
+          }
+        }
+      }
+    },
+    "criterion": {
+      "type": "object",
+      "required": [
+        "id",
+        "name",
+        "points"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9]*(_[a-z0-9]+)*$"
+        },
+        "name": {
+          "type": "string",
+          "description": "What is being checked"
+        },
+        "points": {
+          "type": "integer",
+          "minimum": 2,
+          "maximum": 10,
+          "description": "Points for this criterion (2-10)"
+        },
+        "description": {
+          "type": "string",
+          "description": "Detailed description of the criterion"
+        },
+        "failure_taxonomy": {
+          "$ref": "#/$defs/failureTaxonomy"
+        },
+        "verification": {
+          "$ref": "#/$defs/verification"
+        }
+      }
+    },
+    "scoringConstraints": {
+      "type": "object",
+      "properties": {
+        "min_categories": {
+          "type": "integer",
+          "default": 4
+        },
+        "max_categories": {
+          "type": "integer",
+          "default": 6
+        },
+        "min_category_weight": {
+          "type": "integer",
+          "default": 10
+        },
+        "max_category_weight": {
+          "type": "integer",
+          "default": 30
+        },
+        "min_criterion_points": {
+          "type": "integer",
+          "default": 2
+        },
+        "max_criterion_points": {
+          "type": "integer",
+          "default": 10
+        },
+        "total_must_equal": {
+          "type": "integer",
+          "const": 100
+        }
+      }
+    },
+    "tasks": {
+      "type": "object",
+      "required": [
+        "inputs",
+        "operations",
+        "outputs"
+      ],
+      "properties": {
+        "inputs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/taskInput"
+          },
+          "description": "What the executor needs"
+        },
+        "operations": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/taskOperation"
+          },
+          "description": "What the executor does"
+        },
+        "outputs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/taskOutput"
+          },
+          "description": "What the executor produces"
+        }
+      }
+    },
+    "taskInput": {
+      "type": "object",
+      "required": [
+        "id",
+        "name",
+        "type"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9]*(_[a-z0-9]+)*$"
+        },
+        "name": {
+          "type": "string"
+        },
+        "type": {
+          "type": "string",
+          "enum": [
+            "string",
+            "number",
+            "boolean",
+            "array",
+            "object",
+            "enum",
+            "file",
+            "path"
+          ]
+        },
+        "itemType": {
+          "type": "string",
+          "description": "For arrays: type of items"
+        },
+        "values": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "For enums: allowed values"
+        },
+        "default": {
+          "description": "Default value if not provided"
+        },
+        "required": {
+          "type": "boolean",
+          "default": false
+        },
+        "source": {
+          "type": "string",
+          "enum": [
+            "file",
+            "argument",
+            "previous_phase",
+            "environment",
+            "stdin",
+            "prompt"
+          ]
+        },
+        "description": {
+          "type": "string"
+        },
+        "validation": {
+          "$ref": "#/$defs/inputValidation"
+        }
+      }
+    },
+    "inputValidation": {
+      "type": "object",
+      "properties": {
+        "pattern": {
+          "type": "string",
+          "description": "Regex pattern for string validation"
+        },
+        "min": {
+          "type": "number",
+          "description": "Minimum value for numbers, min length for strings/arrays"
+        },
+        "max": {
+          "type": "number",
+          "description": "Maximum value for numbers, max length for strings/arrays"
+        },
+        "custom": {
+          "type": "string",
+          "description": "Custom validation expression"
+        }
+      }
+    },
+    "taskOperation": {
+      "type": "object",
+      "required": [
+        "id",
+        "name",
+        "description"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9]*(_[a-z0-9]+)*$"
+        },
+        "name": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        },
+        "depends_on": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": []
+        },
+        "condition": {
+          "type": "string",
+          "description": "Expression for conditional execution"
+        },
+        "timeout": {
+          "type": "integer",
+          "description": "Operation-specific timeout (ms)"
+        },
+        "retry": {
+          "$ref": "#/$defs/retryConfig"
+        },
+        "rollback_on_failure": {
+          "type": "boolean",
+          "default": false,
+          "description": "Whether to trigger rollback if this operation fails"
+        }
+      }
+    },
+    "retryConfig": {
+      "type": "object",
+      "properties": {
+        "max_attempts": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 10,
+          "default": 0,
+          "description": "Maximum retry attempts (0 = no retries)"
+        },
+        "backoff_ms": {
+          "type": "integer",
+          "minimum": 100,
+          "default": 1000,
+          "description": "Initial backoff delay in milliseconds"
+        },
+        "backoff_multiplier": {
+          "type": "number",
+          "minimum": 1,
+          "maximum": 5,
+          "default": 2,
+          "description": "Multiplier for exponential backoff"
+        },
+        "retry_on": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Error types/codes that trigger retry"
+        }
+      }
+    },
+    "taskOutput": {
+      "type": "object",
+      "required": [
+        "id",
+        "name",
+        "type"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9]*(_[a-z0-9]+)*$"
+        },
+        "name": {
+          "type": "string"
+        },
+        "type": {
+          "type": "string",
+          "enum": [
+            "string",
+            "number",
+            "boolean",
+            "array",
+            "object",
+            "file",
+            "path"
+          ]
+        },
+        "itemType": {
+          "type": "string",
+          "description": "For arrays: type of items"
+        },
+        "format": {
+          "type": "string",
+          "description": "Format hint (e.g., unified-diff, json, path, markdown)"
+        },
+        "description": {
+          "type": "string"
+        },
+        "required": {
+          "type": "boolean",
+          "default": true,
+          "description": "Whether this output must be produced"
+        }
+      }
+    },
+    "decisions": {
+      "type": "object",
+      "required": [
+        "vocabulary"
+      ],
+      "properties": {
+        "vocabulary": {
+          "type": "object",
+          "required": [
+            "positive",
+            "negative"
+          ],
+          "properties": {
+            "positive": {
+              "type": "string",
+              "pattern": "^[A-Z][A-Z_]*$",
+              "description": "Decision word for passing (e.g., PASS, SECURE)",
+              "examples": [
+                "PASS",
+                "SECURE",
+                "DEPLOY",
+                "APPROVED"
+              ]
+            },
+            "negative": {
+              "type": "string",
+              "pattern": "^[A-Z][A-Z_]*$",
+              "description": "Decision word for failing (e.g., FAIL, BLOCKED)",
+              "examples": [
+                "FAIL",
+                "BLOCKED",
+                "REVISE",
+                "REJECTED"
+              ]
+            },
+            "conditional": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "pattern": "^[A-Z][A-Z_]*$",
+              "description": "Optional middle-tier decision word (e.g., WARN)",
+              "examples": [
+                "WARN",
+                "REVIEW",
+                "CAUTION"
+              ]
+            }
+          }
+        },
+        "thresholds": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/threshold"
+          },
+          "description": "Explicit threshold definitions"
+        },
+        "preset": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "enum": [
+            "low_risk",
+            "quality_gate",
+            "high_stakes",
+            "security",
+            "critical",
+            null
+          ],
+          "description": "Use predefined threshold configuration"
+        },
+        "tracking": {
+          "$ref": "#/$defs/decisionTracking"
+        },
+        "success_criteria": {
+          "$ref": "#/$defs/successCriteria",
+          "description": "Explicit conditions for a positive decision, beyond just the score threshold (v1.5.0)"
+        },
+        "decision_guidance": {
+          "type": "string",
+          "maxLength": 2000,
+          "description": "Guidance for edge cases near decision boundaries - how to handle ambiguous scores (v1.7.0)"
+        }
+      },
+      "oneOf": [
+        {
+          "required": [
+            "thresholds"
+          ]
+        },
+        {
+          "required": [
+            "preset"
+          ],
+          "properties": {
+            "preset": {
+              "not": {
+                "const": null
+              }
+            }
+          }
+        }
+      ],
+      "allOf": [
+        {
+          "$comment": "Gate category requires binary vocabulary (no conditional)",
+          "if": {
+            "properties": {
+              "tracking": {
+                "properties": {
+                  "category": {
+                    "const": "gate"
+                  }
+                },
+                "required": [
+                  "category"
+                ]
+              }
+            },
+            "required": [
+              "tracking"
+            ]
+          },
+          "then": {
+            "properties": {
+              "vocabulary": {
+                "properties": {
+                  "conditional": {
+                    "type": "null"
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "$comment": "Safety category requires ternary vocabulary (conditional must be present)",
+          "if": {
+            "properties": {
+              "tracking": {
+                "properties": {
+                  "category": {
+                    "const": "safety"
+                  }
+                },
+                "required": [
+                  "category"
+                ]
+              }
+            },
+            "required": [
+              "tracking"
+            ]
+          },
+          "then": {
+            "properties": {
+              "vocabulary": {
+                "properties": {
+                  "conditional": {
+                    "type": "string",
+                    "pattern": "^[A-Z][A-Z_]*$",
+                    "minLength": 1
+                  }
+                },
+                "required": [
+                  "positive",
+                  "negative",
+                  "conditional"
+                ]
+              }
+            }
+          }
+        }
+      ]
+    },
+    "threshold": {
+      "type": "object",
+      "required": [
+        "decision"
+      ],
+      "properties": {
+        "decision": {
+          "type": "string",
+          "enum": [
+            "positive",
+            "conditional",
+            "negative"
+          ]
+        },
+        "min_score": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 100
+        },
+        "max_score": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 100
+        },
+        "label": {
+          "type": "string",
+          "description": "Human-readable description of this threshold"
+        }
+      }
+    },
+    "decisionTracking": {
+      "type": "object",
+      "properties": {
+        "category": {
+          "type": "string",
+          "enum": [
+            "gate",
+            "safety",
+            "advisory"
+          ],
+          "description": "How decisions are tracked/aggregated"
+        },
+        "notify_on": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "positive",
+              "conditional",
+              "negative"
+            ]
+          },
+          "description": "Decision outcomes that trigger notifications"
+        }
+      }
+    },
+    "completion": {
+      "type": "object",
+      "required": [
+        "vocabulary",
+        "criteria"
+      ],
+      "properties": {
+        "vocabulary": {
+          "type": "object",
+          "required": [
+            "complete",
+            "partial",
+            "failed"
+          ],
+          "properties": {
+            "complete": {
+              "type": "string",
+              "pattern": "^[A-Z][A-Z_]*$",
+              "description": "Decision word for full completion (e.g., COMPLETE)"
+            },
+            "partial": {
+              "type": "string",
+              "pattern": "^[A-Z][A-Z_]*$",
+              "description": "Decision word for partial completion (e.g., PARTIAL)"
+            },
+            "failed": {
+              "type": "string",
+              "pattern": "^[A-Z][A-Z_]*$",
+              "description": "Decision word for failure (e.g., FAILED)"
+            }
+          }
+        },
+        "criteria": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/completionCriterion"
+          }
+        }
+      }
+    },
+    "completionCriterion": {
+      "type": "object",
+      "required": [
+        "condition",
+        "decision"
+      ],
+      "properties": {
+        "condition": {
+          "type": "string",
+          "description": "Expression to evaluate"
+        },
+        "decision": {
+          "type": "string",
+          "enum": [
+            "complete",
+            "partial",
+            "failed"
+          ]
+        },
+        "label": {
+          "type": "string"
+        }
+      }
+    },
+    "autoFail": {
+      "type": "object",
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "default": true
+        },
+        "conditions": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/autoFailCondition"
+          }
+        }
+      }
+    },
+    "autoFailCondition": {
+      "type": "object",
+      "required": [
+        "id",
+        "name",
+        "severity"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9]*(_[a-z0-9]+)*$"
+        },
+        "display_id": {
+          "type": "string",
+          "pattern": "^[A-Z]{2,4}-\\d{3}$",
+          "description": "Human-readable numbered identifier (e.g., AF-001, AF-002)"
+        },
+        "name": {
+          "type": "string"
+        },
+        "severity": {
+          "type": "string",
+          "const": "critical",
+          "description": "Auto-fail conditions must be critical severity"
+        },
+        "detection": {
+          "type": "object",
+          "required": [
+            "method"
+          ],
+          "properties": {
+            "method": {
+              "type": "string",
+              "enum": [
+                "pattern",
+                "semantic",
+                "tool"
+              ]
+            },
+            "patterns": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "exclude_patterns": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "description": {
+              "type": "string"
+            },
+            "command": {
+              "type": "string"
+            },
+            "failure_condition": {
+              "type": "string"
+            }
+          }
+        },
+        "category_override": {
+          "type": "string",
+          "description": "Category to zero when triggered"
+        },
+        "evidence_required": {
+          "type": "boolean",
+          "default": true
+        },
+        "remediation": {
+          "type": "string"
+        }
+      }
+    },
+    "deductions": {
+      "type": "object",
+      "properties": {
+        "severity_scale": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/severityLevel"
+          }
+        }
+      }
+    },
+    "severityLevel": {
+      "type": "object",
+      "required": [
+        "level",
+        "points",
+        "emoji",
+        "label",
+        "action"
+      ],
+      "properties": {
+        "level": {
+          "$ref": "#/$defs/severityCode"
+        },
+        "points": {
+          "oneOf": [
+            {
+              "type": "integer",
+              "maximum": 0
+            },
+            {
+              "type": "string",
+              "const": "auto_fail"
+            }
+          ]
+        },
+        "emoji": {
+          "type": "string",
+          "maxLength": 4
+        },
+        "label": {
+          "type": "string"
+        },
+        "action": {
+          "type": "string"
+        }
+      }
+    },
+    "rollback": {
+      "type": "object",
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "default": false
+        },
+        "strategy": {
+          "type": "string",
+          "enum": [
+            "git_restore",
+            "git_stash",
+            "backup_restore",
+            "manual",
+            "none"
+          ],
+          "description": "How to recover on failure"
+        },
+        "preserve_logs": {
+          "type": "boolean",
+          "default": true,
+          "description": "Keep execution logs after rollback"
+        },
+        "notify_on_rollback": {
+          "type": "boolean",
+          "default": true,
+          "description": "Send notification when rollback occurs"
+        }
+      }
+    },
+    "process": {
+      "type": "object",
+      "properties": {
+        "reasoning_scaffolding": {
+          "$ref": "#/$defs/reasoningScaffolding",
+          "description": "Structured reasoning process for consistent evaluation (v1.4.0)"
+        },
+        "pre_decision_checklist": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Checklist to verify before finalizing decision (v1.4.0)"
+        },
+        "phases": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/processPhase"
+          }
+        }
+      }
+    },
+    "processPhase": {
+      "type": "object",
+      "required": [
+        "id",
+        "name"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9]*(_[a-z0-9]+)*$"
+        },
+        "name": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        },
+        "steps": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/processStep"
+          }
+        },
+        "instructions": {
+          "type": "string",
+          "description": "Free-form instructions for manual phases"
+        },
+        "retry": {
+          "$ref": "#/$defs/retryConfig"
+        }
+      }
+    },
+    "processStep": {
+      "type": "object",
+      "required": [
+        "action"
+      ],
+      "properties": {
+        "action": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        },
+        "tool": {
+          "type": "string",
+          "enum": [
+            "Read",
+            "Grep",
+            "Glob",
+            "Bash",
+            "Web",
+            "API",
+            "MCP"
+          ]
+        },
+        "command": {
+          "type": "string"
+        },
+        "commands": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "condition": {
+                "type": "string"
+              },
+              "result": {
+                "type": "string"
+              }
+            }
+          },
+          "description": "Conditional command selection (VDL compatibility)"
+        },
+        "condition": {
+          "type": "string",
+          "description": "Jinja2-style condition for conditional execution"
+        },
+        "fallback": {
+          "type": "string"
+        },
+        "output_variable": {
+          "type": "string"
+        },
+        "patterns": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "category": {
+                "type": "string"
+              },
+              "grep": {
+                "type": "string"
+              }
+            }
+          },
+          "description": "Category-based grep patterns (VDL compatibility)"
+        },
+        "retry": {
+          "$ref": "#/$defs/retryConfig"
+        },
+        "timeout": {
+          "type": "integer",
+          "description": "Step-specific timeout in milliseconds"
+        }
+      }
+    },
+    "reasoningScaffolding": {
+      "type": "object",
+      "description": "Structured reasoning process for consistent evaluation (v1.4.0, extended v1.7.0)",
+      "properties": {
+        "description": {
+          "type": "string",
+          "description": "Explanation of the reasoning process"
+        },
+        "steps": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/reasoningStep"
+          },
+          "description": "Ordered steps in the reasoning process"
+        },
+        "passes": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/reasoningPass"
+          },
+          "description": "Multi-pass reasoning methodology where each pass has a distinct focus and output (v1.7.0)"
+        },
+        "pass_attribution_requirement": {
+          "type": "string",
+          "maxLength": 1000,
+          "description": "Requirement for attributing findings to specific passes in the output (v1.7.0)"
+        }
+      }
+    },
+    "reasoningStep": {
+      "type": "object",
+      "required": [
+        "action"
+      ],
+      "description": "A single step in the reasoning scaffolding (v1.4.0)",
+      "properties": {
+        "action": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9]*(_[a-z0-9]+)*$",
+          "description": "Snake_case identifier for the action"
+        },
+        "description": {
+          "type": "string",
+          "description": "What this reasoning step accomplishes"
+        },
+        "example": {
+          "type": "string",
+          "description": "Concrete example of this step in action"
+        }
+      }
+    },
+    "reasoningPass": {
+      "type": "object",
+      "required": [
+        "name"
+      ],
+      "description": "A single pass in a multi-pass reasoning methodology (v1.7.0)",
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9]*(_[a-z0-9]+)*$",
+          "description": "Snake_case identifier for the pass"
+        },
+        "name": {
+          "type": "string",
+          "description": "Display name of the pass (e.g., 'Surface Scan', 'Deep Dive')"
+        },
+        "question": {
+          "type": "string",
+          "description": "Guiding question for this pass"
+        },
+        "focus": {
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          ],
+          "description": "What this pass focuses on \u2014 single string or list of focus areas"
+        },
+        "method": {
+          "type": "string",
+          "description": "How to execute this pass"
+        },
+        "output": {
+          "type": "string",
+          "description": "What this pass produces"
+        },
+        "key_questions": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Guiding questions for this pass"
+        }
+      }
+    },
+    "domainTaxonomy": {
+      "type": "object",
+      "required": [
+        "categories"
+      ],
+      "description": "Domain-specific classification taxonomy with categories and optional rating scale (v1.7.0)",
+      "properties": {
+        "completeness_note": {
+          "type": "string",
+          "description": "Guidance on how to handle items that don't fit existing categories"
+        },
+        "categories": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/taxonomyCategory"
+          },
+          "description": "Classification categories for the domain"
+        },
+        "scale": {
+          "$ref": "#/$defs/taxonomyScale",
+          "description": "Optional rating scale for classifying items"
+        },
+        "fragility_scale": {
+          "$ref": "#/$defs/taxonomyScale",
+          "description": "Alias for scale \u2014 fragility-specific rating scale"
+        }
+      }
+    },
+    "taxonomyCategory": {
+      "type": "object",
+      "required": [
+        "name"
+      ],
+      "description": "A category within a domain taxonomy (v1.7.0)",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Short identifier for the category (e.g., 'ENV', 'DEP')"
+        },
+        "name": {
+          "type": "string",
+          "description": "Category name"
+        },
+        "description": {
+          "type": "string",
+          "description": "What this category covers"
+        },
+        "items": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Items within this category"
+        }
+      }
+    },
+    "taxonomyScale": {
+      "type": "object",
+      "required": [
+        "levels"
+      ],
+      "description": "A rating scale for classifying taxonomy items (v1.7.0)",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Scale name (e.g., 'Fragility Scale')"
+        },
+        "description": {
+          "type": "string",
+          "description": "What this scale measures"
+        },
+        "anti_bias_guidance": {
+          "type": "string",
+          "description": "Guidance to prevent scoring bias"
+        },
+        "levels": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/taxonomyLevel"
+          },
+          "description": "Ordered levels in the scale"
+        }
+      }
+    },
+    "taxonomyLevel": {
+      "type": "object",
+      "required": [
+        "label"
+      ],
+      "description": "A single level in a taxonomy rating scale (v1.7.0)",
+      "properties": {
+        "level": {
+          "type": "string",
+          "description": "Level identifier (e.g., '1', '2', 'low', 'high')"
+        },
+        "score": {
+          "type": "string",
+          "description": "Score range (e.g., '9-10', '7-8')"
+        },
+        "label": {
+          "type": "string",
+          "description": "Display label for this level"
+        },
+        "description": {
+          "type": "string",
+          "description": "What this level means"
+        },
+        "meaning": {
+          "type": "string",
+          "description": "Consequence description when assumption at this level breaks"
+        },
+        "indicators": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Observable indicators of this level"
+        }
+      }
+    },
+    "outputExample": {
+      "type": "object",
+      "required": [
+        "scenario",
+        "output"
+      ],
+      "description": "Example output demonstrating expected format (v1.4.0)",
+      "properties": {
+        "scenario": {
+          "type": "string",
+          "description": "Description of the scenario being demonstrated"
+        },
+        "input_summary": {
+          "type": "string",
+          "description": "Brief summary of the input that produced this output"
+        },
+        "output": {
+          "type": "string",
+          "description": "The example output text"
+        }
+      }
+    },
+    "output": {
+      "type": "object",
+      "properties": {
+        "format": {
+          "type": "string",
+          "enum": [
+            "markdown",
+            "json",
+            "html",
+            "structured"
+          ],
+          "default": "markdown"
+        },
+        "schema": {
+          "type": "string",
+          "description": "Reference to output schema (e.g., validator-output-v1.1)"
+        },
+        "token_budget": {
+          "$ref": "#/$defs/tokenBudget",
+          "description": "Output length guidance for LLM (v1.3.0)"
+        },
+        "section_order": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Explicit ordering of output sections by id (v1.3.0)"
+        },
+        "sections": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/outputSection"
+          }
+        },
+        "symbols": {
+          "type": "object",
+          "properties": {
+            "separator": {
+              "type": "string"
+            },
+            "box_top": {
+              "type": "string"
+            },
+            "box_bottom": {
+              "type": "string"
+            },
+            "decision_positive": {
+              "type": "string"
+            },
+            "decision_negative": {
+              "type": "string"
+            },
+            "decision_conditional": {
+              "type": "string"
+            }
+          }
+        },
+        "classification": {
+          "$ref": "#/$defs/outputClassification"
+        },
+        "structured": {
+          "$ref": "#/$defs/structuredOutputConfig"
+        },
+        "examples": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/outputExample"
+          },
+          "description": "Example outputs demonstrating expected format (v1.4.0)"
+        },
+        "templates": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          },
+          "description": "Named output templates for different report sections (v1.7.0)"
+        },
+        "metrics": {
+          "type": "object",
+          "description": "Metric vocabulary defining labels, descriptions, and sentiment for system_metrics and epistemic_assessment keys (v1.12.0). Enables dashboards to render self-documenting metrics without hardcoded knowledge of agent-specific vocabulary.",
+          "additionalProperties": {
+            "$ref": "#/$defs/metricDefinition"
+          }
+        },
+        "implications": {
+          "type": "object",
+          "description": "Output implications section configuration per agent-output-implications-spec-v0.1.0",
+          "properties": {
+            "section_label": {
+              "type": "string",
+              "description": "Section label matching agent type (e.g., AUDIT IMPLICATIONS, TRAJECTORY IMPLICATIONS)"
+            },
+            "framing_question": {
+              "type": "string",
+              "description": "The question this implications section answers, scoped to the agent's epistemic function"
+            },
+            "scope_boundary": {
+              "type": "string",
+              "description": "What the agent must not do in implications (e.g., must not prescribe implementation changes)"
+            }
+          },
+          "required": [
+            "section_label"
+          ]
+        }
+      }
+    },
+    "outputSection": {
+      "type": "object",
+      "required": [
+        "id",
+        "template"
+      ],
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "condition": {
+          "type": "string",
+          "description": "Jinja2-style condition for conditional rendering"
+        },
+        "template": {
+          "type": "string",
+          "description": "Jinja2-style template for output generation"
+        }
+      }
+    },
+    "outputClassification": {
+      "type": "object",
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "default": false
+        },
+        "taxonomy_version": {
+          "type": "string",
+          "pattern": "^\\d+\\.\\d+\\.\\d+$",
+          "description": "Version of failure taxonomy to use"
+        },
+        "include_codes": {
+          "type": "boolean",
+          "default": true,
+          "description": "Include failure codes in output"
+        },
+        "allow_secondary": {
+          "type": "boolean",
+          "default": false,
+          "description": "Allow secondary failure classifications"
+        },
+        "default_taxonomy_version": {
+          "type": "string",
+          "pattern": "^\\d+\\.\\d+\\.\\d+$",
+          "description": "Fallback taxonomy version (VDL compatibility alias)"
+        }
+      }
+    },
+    "structuredOutputConfig": {
+      "type": "object",
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "default": false
+        },
+        "schema_ref": {
+          "type": "string",
+          "description": "JSON Schema reference for structured output validation"
+        },
+        "include_metadata": {
+          "type": "boolean",
+          "default": true,
+          "description": "Include execution metadata in output"
+        }
+      }
+    },
+    "metricDefinition": {
+      "type": "object",
+      "required": [
+        "label"
+      ],
+      "description": "Definition of a single metric key used in system_metrics or epistemic_assessment output (v1.12.0)",
+      "properties": {
+        "label": {
+          "type": "string",
+          "maxLength": 100,
+          "description": "Human-readable label for dashboard display (e.g., 'Calcified Conventions')"
+        },
+        "description": {
+          "type": "string",
+          "maxLength": 1000,
+          "description": "Explanation of what this metric measures and why it matters"
+        },
+        "type": {
+          "type": "string",
+          "enum": [
+            "integer",
+            "float",
+            "ratio",
+            "percentage",
+            "string",
+            "boolean",
+            "date",
+            "enum"
+          ],
+          "description": "Data type of the metric value"
+        },
+        "sentiment": {
+          "type": "string",
+          "enum": [
+            "higher_is_better",
+            "lower_is_better",
+            "neutral",
+            "target_range"
+          ],
+          "description": "How to interpret the value directionally \u2014 enables green/amber/red coloring in dashboards"
+        },
+        "range": {
+          "type": "object",
+          "description": "Expected value range for contextualizing the metric",
+          "properties": {
+            "min": {
+              "type": "number",
+              "description": "Minimum expected value"
+            },
+            "max": {
+              "type": "number",
+              "description": "Maximum expected value"
+            },
+            "target": {
+              "type": "number",
+              "description": "Ideal target value (for target_range sentiment)"
+            }
+          }
+        },
+        "section": {
+          "type": "string",
+          "enum": [
+            "system_metrics",
+            "epistemic_assessment"
+          ],
+          "default": "system_metrics",
+          "description": "Which output section this metric appears in"
+        }
+      }
+    },
+    "edgeCase": {
+      "type": "object",
+      "required": [
+        "id",
+        "condition",
+        "behavior"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9]*(_[a-z0-9]+)*$"
+        },
+        "condition": {
+          "type": "string",
+          "description": "Human-readable condition description"
+        },
+        "condition_expression": {
+          "type": "string",
+          "description": "Machine-parseable condition for automated detection (v1.2.0)"
+        },
+        "behavior": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Steps to take when condition is met"
+        },
+        "score_adjustment": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "object",
+              "properties": {
+                "exclude_categories": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "rescale": {
+                  "type": "boolean"
+                },
+                "fixed_score": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 100,
+                  "description": "Override with fixed score"
+                }
+              }
+            }
+          ]
+        },
+        "report_wording": {
+          "type": "string",
+          "maxLength": 600,
+          "description": "Exact text to include in report (v1.2.0)"
+        },
+        "judgment_rationale": {
+          "type": "string",
+          "maxLength": 1000,
+          "description": "WHY this handling is appropriate (v1.2.0)"
+        },
+        "decision_override": {
+          "$ref": "#/$defs/decisionOverride",
+          "description": "Whether/how to override score-based decision (v1.2.0)"
+        },
+        "compound_conditions": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/compoundCondition"
+          },
+          "description": "Handle 'what if both X and Y?' scenarios (v1.2.0)"
+        },
+        "severity": {
+          "$ref": "#/$defs/severityCode",
+          "description": "Importance of correct handling (v1.2.0)"
+        }
+      }
+    },
+    "tone": {
+      "type": "object",
+      "properties": {
+        "attributes": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Tone characteristics",
+          "examples": [
+            [
+              "Direct and actionable",
+              "Evidence-based",
+              "Constructive"
+            ]
+          ]
+        },
+        "guidelines": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Communication guidelines"
+        }
+      }
+    },
+    "verification": {
+      "type": "object",
+      "required": [
+        "method"
+      ],
+      "properties": {
+        "method": {
+          "type": "string",
+          "enum": [
+            "manual",
+            "automated",
+            "hybrid"
+          ]
+        },
+        "checks": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Human-readable verification steps"
+        },
+        "automation": {
+          "type": "object",
+          "properties": {
+            "tool": {
+              "type": "string",
+              "enum": [
+                "grep",
+                "ast",
+                "linter",
+                "test",
+                "custom",
+                "tsc",
+                "npm-audit",
+                "coverage",
+                "jscpd",
+                "glob",
+                "json-schema",
+                "api-extractor",
+                "eslint",
+                "pylint",
+                "ruff",
+                "prettier",
+                "black"
+              ],
+              "description": "Automation tool type"
+            },
+            "pattern": {
+              "type": "string",
+              "description": "Regex or tool-specific pattern"
+            },
+            "command": {
+              "type": "string",
+              "description": "Shell command to execute"
+            },
+            "threshold": {
+              "type": "integer",
+              "description": "Max matches for pass (0 = none allowed)"
+            },
+            "timeout": {
+              "type": "integer",
+              "description": "Tool-specific timeout in milliseconds"
+            }
+          }
+        },
+        "verify_guidance": {
+          "type": "string",
+          "maxLength": 1000,
+          "description": "Explicit HOW-TO instructions for verification (v1.2.0)"
+        },
+        "partial_scoring": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/partialScore"
+          },
+          "description": "Graduated scoring rules (v1.2.0)"
+        },
+        "definition_clarifications": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/definitionClarification"
+          },
+          "description": "Clarifies ambiguous terms (v1.2.0)"
+        },
+        "formula": {
+          "type": "string",
+          "description": "Mathematical formula or algorithm for computing the criterion score (v1.5.1)"
+        },
+        "thresholds": {
+          "type": "object",
+          "additionalProperties": {
+            "oneOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "string"
+              }
+            ]
+          },
+          "description": "Named numeric thresholds for verification checks (v1.5.1)"
+        }
+      }
+    },
+    "calibrationExample": {
+      "type": "object",
+      "required": [
+        "score",
+        "scenario"
+      ],
+      "description": "Score-to-scenario example for LLM scoring calibration (v1.3.0)",
+      "properties": {
+        "score": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 100,
+          "description": "Expected score for this scenario"
+        },
+        "scenario": {
+          "type": "string",
+          "description": "Short label describing the scenario (e.g., 'Clean phase with minor issues')"
+        },
+        "description": {
+          "type": "string",
+          "description": "Detailed explanation of the scenario"
+        },
+        "deductions": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/deduction"
+          },
+          "description": "Specific point deductions that led to this score"
+        }
+      }
+    },
+    "deduction": {
+      "type": "object",
+      "required": [
+        "criterion",
+        "points_lost"
+      ],
+      "description": "A specific point deduction within a calibration example (v1.3.0)",
+      "properties": {
+        "criterion": {
+          "type": "string",
+          "description": "The criterion id that was deducted"
+        },
+        "points_lost": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 10,
+          "description": "Points deducted for this criterion"
+        },
+        "reason": {
+          "type": "string",
+          "description": "Explanation of why points were deducted"
+        }
+      }
+    },
+    "tokenBudget": {
+      "type": "object",
+      "description": "Output length guidance for LLM (v1.3.0)",
+      "properties": {
+        "target": {
+          "type": "integer",
+          "minimum": 100,
+          "description": "Target token count for typical output"
+        },
+        "max": {
+          "type": "integer",
+          "minimum": 100,
+          "description": "Maximum token count (hard limit)"
+        },
+        "guidance": {
+          "type": "string",
+          "description": "Free-form guidance about output length"
+        }
+      }
+    },
+    "failureCodeExample": {
+      "type": "object",
+      "required": [
+        "issue",
+        "failure_code"
+      ],
+      "description": "Example mapping an issue description to its failure taxonomy code (v1.3.0)",
+      "properties": {
+        "issue": {
+          "type": "string",
+          "description": "Description of the issue"
+        },
+        "failure_code": {
+          "type": "string",
+          "pattern": "^(STR|SEM|PRA|EPI)-[A-Z]{3}/[CHMLI]$",
+          "description": "Full failure code with severity (e.g., PRA-FRA/M)"
+        },
+        "explanation": {
+          "type": "string",
+          "description": "Detailed explanation of why this code applies"
+        }
+      }
+    },
+    "failureTaxonomy": {
+      "type": "object",
+      "required": [
+        "failure_mode"
+      ],
+      "properties": {
+        "domain": {
+          "$ref": "#/$defs/failureDomainLabel",
+          "description": "Human-readable domain label"
+        },
+        "domain_code": {
+          "$ref": "#/$defs/failureDomainCode",
+          "description": "Canonical domain code (auto-derived from failure_mode if not specified)"
+        },
+        "failure_mode": {
+          "$ref": "#/$defs/failureModeCode",
+          "description": "Fully-qualified mode code (e.g., SEM-INC)"
+        },
+        "default_severity": {
+          "$ref": "#/$defs/severityCode"
+        }
+      }
+    },
+    "failureDomainLabel": {
+      "type": "string",
+      "enum": [
+        "structural",
+        "semantic",
+        "pragmatic",
+        "epistemic"
+      ],
+      "description": "Human-readable domain labels for authoring"
+    },
+    "failureDomainCode": {
+      "type": "string",
+      "enum": [
+        "STR",
+        "SEM",
+        "PRA",
+        "EPI"
+      ],
+      "description": "Canonical domain codes for storage and queries"
+    },
+    "failureModeCode": {
+      "type": "string",
+      "pattern": "^(STR|SEM|PRA|EPI)-[A-Z]{3}$",
+      "description": "Fully-qualified mode codes (domain prefix + 3-letter mode)",
+      "$comment": "Known codes v1.0.0 (24 modes): STR-OMI (Omission), STR-EXC (Excess), STR-MAL (Malformation), STR-INC (Inconsistency), STR-SYN (Syntax), STR-FMT (Format), SEM-INC (Incorrectness), SEM-COM (Incompleteness), SEM-AMB (Ambiguity), SEM-COH (Incoherence), SEM-TYP (Type Error), SEM-LOG (Logic Error), PRA-ALI (Misalignment), PRA-MAT (Mismatch), PRA-EFF (Inefficiency), PRA-FRA (Fragility), PRA-DOC (Documentation), PRA-TST (Testing), EPI-OVR (Overclaiming), EPI-UND (Underclaiming), EPI-GRN (Ungrounded), EPI-FAL (Unfalsifiable), EPI-VAL (Validation), EPI-VER (Unverifiable)"
+    },
+    "severityCode": {
+      "type": "string",
+      "enum": [
+        "critical",
+        "high",
+        "medium",
+        "low",
+        "info"
+      ],
+      "description": "Issue severity classification"
+    },
+    "successCriteria": {
+      "type": "object",
+      "description": "Explicit conditions for a positive decision, beyond just the score threshold (v1.5.0)",
+      "properties": {
+        "description": {
+          "type": "string",
+          "maxLength": 1000,
+          "description": "Introductory text explaining what must be true for success"
+        },
+        "criteria": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "maxLength": 800
+          },
+          "minItems": 1,
+          "maxItems": 10,
+          "description": "List of conditions that must ALL be true for a positive decision"
+        }
+      },
+      "required": [
+        "criteria"
+      ]
+    },
+    "dataSource": {
+      "type": "object",
+      "required": [
+        "name",
+        "description"
+      ],
+      "description": "External data source configuration (v1.5.1)",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Display name of the data source"
+        },
+        "description": {
+          "type": "string",
+          "description": "What this data source provides"
+        },
+        "tools": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/dataSourceTool"
+          },
+          "description": "MCP tools or API endpoints available from this source"
+        },
+        "commands": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/dataSourceCommand"
+          },
+          "description": "CLI commands for accessing this data source"
+        }
+      }
+    },
+    "dataSourceTool": {
+      "type": "object",
+      "required": [
+        "name",
+        "purpose"
+      ],
+      "description": "An MCP tool or API endpoint from a data source (v1.5.1)",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Tool or endpoint name"
+        },
+        "purpose": {
+          "type": "string",
+          "description": "What this tool does"
+        },
+        "usage": {
+          "type": "string",
+          "description": "Example usage or signature"
+        }
+      }
+    },
+    "dataSourceCommand": {
+      "type": "object",
+      "required": [
+        "command",
+        "purpose"
+      ],
+      "description": "A CLI command for accessing a data source (v1.5.1)",
+      "properties": {
+        "command": {
+          "type": "string",
+          "description": "The shell command"
+        },
+        "purpose": {
+          "type": "string",
+          "description": "What this command does"
+        }
+      }
+    },
+    "forecast": {
+      "type": "object",
+      "description": "Forecaster-specific configuration defining the prediction lens through which the agent examines artifacts. Captures the three axes: actor type, time horizon, and propagation mechanism. (v1.9.0)",
+      "properties": {
+        "actor_type": {
+          "type": "string",
+          "enum": [
+            "rational",
+            "naive",
+            "adversarial",
+            "systemic",
+            "cultural",
+            "creative"
+          ],
+          "description": "Who is interacting with the artifact \u2014 the primary actor whose behavior drives predictions"
+        },
+        "time_horizon": {
+          "type": "string",
+          "enum": [
+            "near-term",
+            "medium-term",
+            "long-term"
+          ],
+          "description": "Temporal scope of predictions"
+        },
+        "propagation_mechanism": {
+          "type": "string",
+          "description": "How effects propagate \u2014 e.g., metric gaming, causal chains, cascade depth, cultural normalization, capability unlock"
+        },
+        "prediction_format": {
+          "type": "string",
+          "enum": [
+            "probability-weighted",
+            "spectrum",
+            "timeline",
+            "depth-map",
+            "interaction-map"
+          ],
+          "description": "The structural format of prediction outputs"
+        }
+      }
+    },
+    "handoff": {
+      "type": "object",
+      "description": "Agent composition contracts for upstream/downstream data flow",
+      "properties": {
+        "upstream_context": {
+          "type": "object",
+          "description": "What this agent accepts from upstream agents",
+          "properties": {
+            "input_contract": {
+              "type": "string",
+              "description": "Explicit contract for what the agent requires as input \u2014 format, cardinality, and error behavior when input is missing or ambiguous"
+            },
+            "accepts": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "description": "Types of artifacts this agent can receive"
+            },
+            "description": {
+              "type": "string",
+              "description": "Human-readable description of upstream requirements"
+            }
+          }
+        },
+        "downstream_artifacts": {
+          "type": "object",
+          "description": "What this agent produces for downstream agents",
+          "properties": {
+            "produces": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "description": "Types of artifacts this agent produces"
+            },
+            "description": {
+              "type": "string",
+              "description": "Human-readable description of downstream outputs"
+            }
+          }
+        }
+      }
+    },
+    "cognitiveLens": {
+      "type": "object",
+      "description": "Cognitive lens extension for encoding epistemic frameworks as composable agent definitions (v1.11.0)",
+      "required": [
+        "thinker"
+      ],
+      "properties": {
+        "thinker": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9]*(-[a-z0-9]+)*$",
+          "description": "Kebab-case identifier for the thinker whose epistemic framework this agent encodes",
+          "examples": [
+            "aristotle",
+            "popper",
+            "darwin",
+            "kant",
+            "hume"
+          ]
+        },
+        "epistemic_depth": {
+          "$ref": "#/$defs/epistemicDepth"
+        },
+        "core_axioms": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/coreAxiom"
+          },
+          "minItems": 1,
+          "maxItems": 10,
+          "description": "Foundational assumptions of the thinker's framework that shape all analysis"
+        },
+        "failure_signatures": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/failureSignature"
+          },
+          "minItems": 1,
+          "maxItems": 10,
+          "description": "Known failure modes specific to this epistemic lens"
+        }
+      }
+    },
+    "epistemicDepth": {
+      "type": "object",
+      "description": "Epistemic depth configuration \u2014 what order of analysis this agent operates at (v1.11.0)",
+      "required": [
+        "primary"
+      ],
+      "properties": {
+        "primary": {
+          "type": "string",
+          "enum": [
+            "first-order",
+            "second-order",
+            "third-order"
+          ],
+          "description": "Default depth this agent operates at. First-order analyzes domain artifacts, second-order analyzes reasoning about artifacts, third-order analyzes the framework itself."
+        },
+        "capable": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "first-order",
+              "second-order",
+              "third-order"
+            ]
+          },
+          "uniqueItems": true,
+          "description": "All depths this agent can operate at"
+        },
+        "target_description": {
+          "type": "string",
+          "maxLength": 400,
+          "description": "Human-readable description of what this agent targets at its primary depth"
+        }
+      }
+    },
+    "coreAxiom": {
+      "type": "object",
+      "description": "A foundational assumption of the thinker's epistemic framework (v1.11.0)",
+      "required": [
+        "axiom"
+      ],
+      "properties": {
+        "axiom": {
+          "type": "string",
+          "maxLength": 800,
+          "description": "Statement of the axiom"
+        },
+        "implications": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "maxLength": 800
+          },
+          "maxItems": 5,
+          "description": "Practical consequences of this axiom for analysis"
+        }
+      }
+    },
+    "failureSignature": {
+      "type": "object",
+      "description": "A known failure mode specific to this epistemic lens (v1.11.0)",
+      "required": [
+        "signature",
+        "description"
+      ],
+      "properties": {
+        "signature": {
+          "type": "string",
+          "maxLength": 100,
+          "description": "Short name for the failure mode"
+        },
+        "description": {
+          "type": "string",
+          "maxLength": 1000,
+          "description": "Why this failure mode occurs with this lens"
+        },
+        "mitigation": {
+          "type": "string",
+          "maxLength": 1000,
+          "description": "How to mitigate this failure, typically by pairing with another lens"
+        }
+      }
+    },
+    "composition": {
+      "type": "object",
+      "description": "Composition metadata describing how this agent pairs with others (v1.11.0)",
+      "properties": {
+        "pairs_well_with": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/compositionPairing"
+          },
+          "maxItems": 10,
+          "description": "Agents that complement this one"
+        },
+        "covers_blind_spots_of": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/blindSpotCoverage"
+          },
+          "maxItems": 10,
+          "description": "Agents whose blind spots this one addresses"
+        },
+        "has_blind_spots_covered_by": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/blindSpotCoverage"
+          },
+          "maxItems": 10,
+          "description": "Agents that address this one's blind spots"
+        }
+      }
+    },
+    "compositionPairing": {
+      "type": "object",
+      "description": "A pairing with a complementary agent (v1.11.0)",
+      "required": [
+        "agent",
+        "reason"
+      ],
+      "properties": {
+        "agent": {
+          "type": "string",
+          "description": "Reference to the complementary agent"
+        },
+        "reason": {
+          "type": "string",
+          "maxLength": 800,
+          "description": "Why this pairing is productive"
+        },
+        "pattern": {
+          "type": "string",
+          "enum": [
+            "adversarial_dialectic",
+            "parallel_reading",
+            "sequential_pipeline",
+            "complementary_coverage"
+          ],
+          "description": "Composition pattern for this pairing"
+        },
+        "depth": {
+          "type": "string",
+          "enum": [
+            "first-order",
+            "second-order",
+            "third-order"
+          ],
+          "description": "Epistemic depth for this pairing if different from agent default"
+        }
+      }
+    },
+    "blindSpotCoverage": {
+      "type": "object",
+      "description": "A blind spot coverage relationship between agents (v1.11.0)",
+      "required": [
+        "agent",
+        "blind_spot",
+        "how"
+      ],
+      "properties": {
+        "agent": {
+          "type": "string",
+          "description": "Reference to the agent"
+        },
+        "blind_spot": {
+          "type": "string",
+          "maxLength": 100,
+          "description": "Name of the blind spot"
+        },
+        "how": {
+          "type": "string",
+          "maxLength": 800,
+          "description": "How this coverage works"
+        }
+      }
+    }
+  }
+}
