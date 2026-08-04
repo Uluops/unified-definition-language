@@ -2801,7 +2801,7 @@
       "type": "string",
       "pattern": "^(STR|SEM|PRA|EPI)-[A-Z]{3}$",
       "description": "Fully-qualified mode codes (domain prefix + 3-letter mode)",
-      "$comment": "Known codes v1.0.0 (24 modes): STR-OMI (Omission), STR-EXC (Excess), STR-MAL (Malformation), STR-INC (Inconsistency), STR-SYN (Syntax), STR-FMT (Format), SEM-INC (Incorrectness), SEM-COM (Incompleteness), SEM-AMB (Ambiguity), SEM-COH (Incoherence), SEM-TYP (Type Error), SEM-LOG (Logic Error), PRA-ALI (Misalignment), PRA-MAT (Mismatch), PRA-EFF (Inefficiency), PRA-FRA (Fragility), PRA-DOC (Documentation), PRA-TST (Testing), EPI-OVR (Overclaiming), EPI-UND (Underclaiming), EPI-GRN (Ungrounded), EPI-FAL (Unfalsifiable), EPI-VAL (Validation), EPI-VER (Unverifiable)"
+      "$comment": "Known codes v1.1.0 (28 modes): STR-OMI (Omission), STR-EXC (Excess), STR-MAL (Malformation), STR-INC (Inconsistency), STR-SYN (Syntax), STR-FMT (Format), STR-ORG (Organization), SEM-INC (Incorrectness), SEM-COM (Incompleteness), SEM-AMB (Ambiguity), SEM-COH (Incoherence), SEM-TYP (Type Error), SEM-LOG (Logic Error), SEM-CAT (Misclassification), PRA-ALI (Misalignment), PRA-MAT (Mismatch), PRA-EFF (Inefficiency), PRA-FRA (Fragility), PRA-DOC (Documentation), PRA-TST (Testing), PRA-ACT (Inactionable), EPI-OVR (Overclaiming), EPI-UND (Underclaiming), EPI-GRN (Ungrounded), EPI-FAL (Unfalsifiable), EPI-VAL (Validation), EPI-VER (Unverifiable), EPI-SCP (Scope)"
     },
     "severityCode": {
       "type": "string",

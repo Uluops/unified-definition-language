@@ -2698,30 +2698,34 @@ ADL v1.1.0 provides comprehensive failure taxonomy type definitions.
 
 | Domain | Code | Name | Description |
 |--------|------|------|-------------|
-| STR | `STR-OMI` | Omission | Missing required elements |
-| STR | `STR-EXC` | Excess | Unnecessary or redundant elements |
-| STR | `STR-MAL` | Malformation | Incorrectly structured elements |
+| STR | `STR-OMI` | Omission | Required element missing |
+| STR | `STR-EXC` | Excess | Unnecessary element present |
+| STR | `STR-MAL` | Malformation | Element has wrong structure |
 | STR | `STR-INC` | Inconsistency | Elements contradict structurally |
-| STR | `STR-SYN` | Syntax | Syntax or specification violation |
-| STR | `STR-FMT` | Format | Formatting or layout issue |
+| STR | `STR-SYN` | Syntax | Syntax or formatting error |
+| STR | `STR-FMT` | Format | Format or layout issue |
+| STR | `STR-ORG` | Organization | Content present but ungrouped or poorly ordered |
 | SEM | `SEM-INC` | Incorrectness | Factually or logically wrong |
 | SEM | `SEM-COM` | Incompleteness | Partially correct, missing key aspects |
 | SEM | `SEM-AMB` | Ambiguity | Multiple valid interpretations |
 | SEM | `SEM-COH` | Incoherence | Internal logical contradiction |
 | SEM | `SEM-TYP` | Type Error | Type system violation |
 | SEM | `SEM-LOG` | Logic Error | Logical reasoning flaw |
-| PRA | `PRA-ALI` | Misalignment | Doesn't serve stated purpose |
+| SEM | `SEM-CAT` | Misclassification | Assigned to the wrong category, or distinct kinds conflated |
+| PRA | `PRA-ALI` | Misalignment | Does not serve stated purpose |
 | PRA | `PRA-MAT` | Mismatch | Wrong for audience or context |
 | PRA | `PRA-EFF` | Inefficiency | Achieves goal suboptimally |
 | PRA | `PRA-FRA` | Fragility | Works now but breaks under change |
 | PRA | `PRA-DOC` | Documentation | Missing or inadequate documentation |
-| PRA | `PRA-TST` | Testing | Insufficient test coverage or quality |
+| PRA | `PRA-TST` | Testing | Insufficient test coverage |
+| PRA | `PRA-ACT` | Inactionable | States a problem with no actionable consequence |
 | EPI | `EPI-OVR` | Overclaiming | Confidence exceeds evidence |
 | EPI | `EPI-UND` | Underclaiming | Evidence exceeds expressed confidence |
 | EPI | `EPI-GRN` | Ungrounded | Claims without traceable support |
 | EPI | `EPI-FAL` | Unfalsifiable | No way to verify or refute |
-| EPI | `EPI-VAL` | Validation | Verification method gap |
-| EPI | `EPI-VER` | Unverifiable | Cannot be independently verified |
+| EPI | `EPI-VAL` | Validation | Validation or verification gap |
+| EPI | `EPI-VER` | Unverifiable | Claim cannot be independently verified |
+| EPI | `EPI-SCP` | Scope | Examined scope or evidence gaps left undeclared |
 
 ### Severity Codes
 
@@ -4126,11 +4130,11 @@ type FailureDomainLabel = 'structural' | 'semantic' | 'pragmatic' | 'epistemic';
 
 type FailureDomainCode = 'STR' | 'SEM' | 'PRA' | 'EPI';
 
-type FailureModeCode = 
-  | 'STR-OMI' | 'STR-EXC' | 'STR-MAL' | 'STR-INC' | 'STR-SYN' | 'STR-FMT'
-  | 'SEM-INC' | 'SEM-COM' | 'SEM-AMB' | 'SEM-COH' | 'SEM-TYP' | 'SEM-LOG'
-  | 'PRA-ALI' | 'PRA-MAT' | 'PRA-EFF' | 'PRA-FRA' | 'PRA-DOC' | 'PRA-TST'
-  | 'EPI-OVR' | 'EPI-UND' | 'EPI-GRN' | 'EPI-FAL' | 'EPI-VAL' | 'EPI-VER';
+type FailureModeCode =
+  | 'STR-OMI' | 'STR-EXC' | 'STR-MAL' | 'STR-INC' | 'STR-SYN' | 'STR-FMT' | 'STR-ORG'
+  | 'SEM-INC' | 'SEM-COM' | 'SEM-AMB' | 'SEM-COH' | 'SEM-TYP' | 'SEM-LOG' | 'SEM-CAT'
+  | 'PRA-ALI' | 'PRA-MAT' | 'PRA-EFF' | 'PRA-FRA' | 'PRA-DOC' | 'PRA-TST' | 'PRA-ACT'
+  | 'EPI-OVR' | 'EPI-UND' | 'EPI-GRN' | 'EPI-FAL' | 'EPI-VAL' | 'EPI-VER' | 'EPI-SCP';
 
 type SeverityCode = 'critical' | 'high' | 'medium' | 'low' | 'info';
 
