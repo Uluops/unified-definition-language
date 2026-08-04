@@ -656,7 +656,7 @@ The taxonomy's four domains derive from the classical hierarchy of language anal
 
 This linguistic grounding is not decorative — it provides an exhaustive decomposition. Any quality judgment about any artifact can be located within one of these four layers, because the layers correspond to the four aspects of any communicative act: form, meaning, contextual fit, and evidential status.
 
-The taxonomy defines 24 failure modes (6 per domain) with collision-free compound codes (e.g., `STR-OMI` for structural omission, `SEM-INC` for semantic incorrectness). The compound code format `{DOMAIN}-{MODE}/{SEVERITY}` encodes domain, mode, and severity in a single parseable token.
+The taxonomy defines 28 failure modes (7 per domain) with collision-free compound codes (e.g., `STR-OMI` for structural omission, `SEM-INC` for semantic incorrectness). The compound code format `{DOMAIN}-{MODE}/{SEVERITY}` encodes domain, mode, and severity in a single parseable token.
 
 ### 9.3 Classification at Multiple Levels
 
